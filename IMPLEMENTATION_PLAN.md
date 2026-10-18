@@ -111,10 +111,10 @@ flowchart TD
    * `EDGE_SKITTER`: Hugs the boundary of the `SAFE_MARGIN` perimeter before darting across the center.
    * `CAUGHT_RESPAWN`: 180ms squish effect, `0.7s` off-screen delay, enters from a safe margin.
 2. **Feline-Visible Procedural Sprites (Zero External Assets):**
-   * **🟡 Dichromatic Laser / Firefly (`laser`):** Core `#FFFFFF`, halo `#FFD600` (yellow), outer glow `#0066FF` (blue), 8-point motion blur ribbon.
-   * **🪲 Scurrying Beetle / Roach (`bug`):** Espresso carapace (`#1A110B`), yellow/cyan highlights, 6 animated cycling legs, twitching antennae.
-   * **🐭 Field Mouse (`mouse`):** Grey-blue body (`#4A5568`), cream/yellow ears, whiskers, 4-node whipping tail.
-   * **🐟 Pond Koi (`fish`):** Golden-yellow (`#FFB703`) & cobalt-blue (`#219EBC`) 3-segment spinal kinematics with animated fins.
+   * ** Dichromatic Laser / Firefly (`laser`):** Core `#FFFFFF`, halo `#FFD600` (yellow), outer glow `#0066FF` (blue), 8-point motion blur ribbon.
+   * ** Scurrying Beetle / Roach (`bug`):** Espresso carapace (`#1A110B`), yellow/cyan highlights, 6 animated cycling legs, twitching antennae.
+   * ** Field Mouse (`mouse`):** Grey-blue body (`#4A5568`), cream/yellow ears, whiskers, 4-node whipping tail.
+   * ** Pond Koi (`fish`):** Golden-yellow (`#FFB703`) & cobalt-blue (`#219EBC`) 3-segment spinal kinematics with animated fins.
 3. **Multi-Prey Scaling:** Default 1 on phones (`<768px`), selectable 1 to 3 on tablets.
 
 ---
@@ -194,7 +194,7 @@ flowchart TD
 3. **High-Fidelity Visual Sprite Pipeline:**
    * Avoid crude geometric placeholders; integrate high-resolution top-down transparent sprites generated via the `image-generator` subagent (e.g., iridescent bumblebee, segmented beetle, lifelike mouse with directional kinematics, koi fish with spine joints).
 4. **Anti-Frustration Treat Screen:** On timer expiry, smoothly decelerate prey off-screen, play chime, display summary stats, show thumbnail of best catch photo, and prompt:
-   > *"🍖 Complete the Hunt! Toss your cat a physical treat or toy right now to satisfy their natural predatory cycle."*
+   > *" Complete the Hunt! Toss your cat a physical treat or toy right now to satisfy their natural predatory cycle."*
 5. **First-Time Fullscreen Onboarding Walkthrough ("Cat-Proofing & Play Guide"):**
    * On first device visit (`!localStorage.getItem('pawplay_onboarded_v1')`), display a polished, fullscreen step-by-step walkthrough covering:
      * **Step 1 — Stability:** Place phone/tablet on a rug, mat, or silicone case so pounces don't slide the device.
@@ -202,7 +202,7 @@ flowchart TD
      * **Step 3 — Feline Colors & Sound:** Explains yellow/blue high-contrast vision and acoustic 12s idle lures.
      * **Step 4 — Pounce-Cam:** Enable camera for instant reaction snapshots.
      * **Step 5 — Complete the Hunt:** Remember to give a real treat when the timer ends!
-   * Tapping **"Got It — Let's Play! 🐾"** marks `pawplay_onboarded_v1 = 'true'` in `localStorage` and transitions directly to the Game Menu.
+   * Tapping **"Got It — Let's Play! "** marks `pawplay_onboarded_v1 = 'true'` in `localStorage` and transitions directly to the Game Menu.
    * On all subsequent visits, bypasses directly to the Game Menu (re-accessible anytime via a "❓ Guide" button).
 6. **Hardware & OS Setup Guide Modal:**
    * **iOS Guided Access:** Visual 3-step guide to triple-click side button and lock the screen.

@@ -180,16 +180,38 @@ export class PounceCam {
     ctx.fillStyle = '#FFB703';
     ctx.font = 'bold 16px monospace';
     ctx.textBaseline = 'middle';
-    ctx.fillText(`🕒 ${timeStr}`, 16, h - 21);
+    ctx.fillText(timeStr, 16, h - 21);
 
     // PawPlay Badge & Trigger tag
-    const tag = trigger === 'near-miss' ? '🐾 NEAR MISS!' : '🐾 PAWPLAY CATCH!';
+    const tag = trigger === 'near-miss' ? 'PAWPLAY NEAR MISS' : 'PAWPLAY CATCH';
     ctx.fillStyle = '#00E5FF';
     ctx.font = 'bold 16px sans-serif';
     ctx.textAlign = 'right';
     ctx.fillText(tag, w - 16, h - 21);
 
     ctx.restore();
+  }
+
+  /**
+   * Triggers client-side download of a photo data URL to the user's downloads folder.
+   * @param {string} dataUrl
+   * @param {string} [filename]
+   */
+  downloadPhoto(dataUrl, filename) {
+    if (typeof document === 'undefined') return;
+    const dateStr = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+    const safeName = filename || `pawplay-cat-pounce-${dateStr}.jpg`;
+    const link = document.createElement('a');
+    link.href = dataUrl;
+    link.download = safeName;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => {
+      if (link.parentNode) {
+        link.parentNode.removeChild(link);
+      }
+    }, 100);
   }
 
   _storeToDb(record) {

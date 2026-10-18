@@ -208,7 +208,7 @@ async function runBenchmark(name, fn) {
 // -------------------------------------------------------------
 
 async function main() {
-  console.log(`\n${BOLD}${CYAN}🐾 PawPlay Empirical Engine Stress & Benchmark Suite${RESET}`);
+  console.log(`\n${BOLD}${CYAN}PawPlay Empirical Engine Stress & Benchmark Suite${RESET}`);
   console.log(`${DIM}Testing src/engine.js directly under extreme burst, memory, resize, and theme loads...${RESET}\n`);
 
   // =============================================================

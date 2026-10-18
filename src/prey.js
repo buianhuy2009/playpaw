@@ -20,8 +20,8 @@
 export const PREY_TYPES = ['laser', 'bug', 'mouse', 'koi', 'bee'];
 export const PREY_STATES = ['FREEZE_TREMOR', 'DART_SPRINT', 'STALK_CREEP', 'EDGE_SKITTER', 'CAUGHT_RESPAWN'];
 export const SPEED_MODES = { kitten: 180, hunter: 400, apex: 750, ludicrous: 1100 };
-export const SIZE_MODES = { tiny: 20, normal: 32, chonky: 50 };
-export const PAW_PAD_TOLERANCE = 42;
+export const SIZE_MODES = { tiny: 36, normal: 54, chonky: 76 };
+export const PAW_PAD_TOLERANCE = 55;
 
 /**
  * Geometric distance from point P to line segment AB
@@ -73,7 +73,7 @@ export class PreyAgent {
     this.sizeMode = SIZE_MODES[sizeMode] ? sizeMode : 'normal';
 
     this.baseSpeed = SPEED_MODES[this.speedMode] || 400;
-    this.radius = SIZE_MODES[this.sizeMode] || 32;
+    this.radius = SIZE_MODES[this.sizeMode] || 54;
 
     this.x = 200 + Math.random() * 400;
     this.y = 200 + Math.random() * 300;
@@ -87,6 +87,7 @@ export class PreyAgent {
     this.jitter = 0;
     this.squishProgress = 0;
     this.isRespawning = false;
+    this.offscreenTimer = 0; // Tracks duration spent past visible screen bounds
 
     // Kinematics and procedural animation timers
     this.animTime = Math.random() * 10;
@@ -201,6 +202,36 @@ export class PreyAgent {
     // Update heading from velocity
     if (Math.abs(this.vx) > 0.001 || Math.abs(this.vy) > 0.001) {
       this.heading = Math.atan2(this.vy, this.vx);
+    }
+
+    // Off-screen return logic: prey can go off the screen, but not for long
+    const isOffscreen = (
+      this.x < safeArea.left ||
+      this.x > safeArea.right ||
+      this.y < safeArea.top ||
+      this.y > safeArea.bottom
+    );
+
+    if (isOffscreen) {
+      this.offscreenTimer += validDt;
+      // After a brief excursion (~0.4s), turn around and re-emerge quickly
+      if (this.offscreenTimer > 0.45) {
+        const centerX = (safeArea.left + safeArea.right) / 2;
+        const centerY = (safeArea.top + safeArea.bottom) / 2;
+        const angle = Math.atan2(centerY - this.y, centerX - this.x);
+        const returnSpeed = Math.max(this.baseSpeed * 1.5, 450);
+        this.vx = Math.cos(angle) * returnSpeed;
+        this.vy = Math.sin(angle) * returnSpeed;
+        this.heading = angle;
+      }
+      if (this.offscreenTimer > 1.0) {
+        // Enforce maximum excursion duration limit
+        this.x = Math.max(safeArea.left - 20, Math.min(safeArea.right + 20, this.x));
+        this.y = Math.max(safeArea.top - 20, Math.min(safeArea.bottom + 20, this.y));
+        this.offscreenTimer = 0;
+      }
+    } else {
+      this.offscreenTimer = 0;
     }
 
     // Markov state transition checks upon duration expiration
@@ -336,7 +367,7 @@ export class PreyAgent {
   // -------------------------------------------------------------
 
   /**
-   * 1. 🟡 Dichromatic Laser Dot
+   * 1. Dichromatic Laser Dot
    */
   _drawLaser(ctx, R) {
     // Outer blue glow
@@ -395,7 +426,7 @@ export class PreyAgent {
   }
 
   /**
-   * 2. 🪲 Scurrying Roach / Beetle
+   * 2. Scurrying Roach / Beetle
    */
   _drawBug(ctx, R) {
     const legPhase = this.animTime * 22;
@@ -490,7 +521,7 @@ export class PreyAgent {
   }
 
   /**
-   * 3. 🐭 Field Mouse
+   * 3. Field Mouse
    */
   _drawMouse(ctx, R) {
     // Whipping tail nodes
@@ -585,7 +616,7 @@ export class PreyAgent {
   }
 
   /**
-   * 4. 🐟 Pond Koi (Golden-yellow & cobalt-blue 3-segment spinal joints)
+   * 4. Pond Koi (Golden-yellow & cobalt-blue 3-segment spinal joints)
    */
   _drawKoi(ctx, R) {
     const swimWave = Math.sin(this.animTime * 8);
@@ -644,7 +675,7 @@ export class PreyAgent {
   }
 
   /**
-   * 5. 🐝 Bumblebee (Yellow/Black stripes, 60Hz fluttering wings)
+   * 5. Bumblebee (Yellow/Black stripes, 60Hz fluttering wings)
    */
   _drawBee(ctx, R) {
     const wingFlap = Math.sin(this.animTime * 60);

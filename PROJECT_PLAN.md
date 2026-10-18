@@ -296,9 +296,9 @@ timeline
 * **Prey AI State Machine:**
   * Three states: `SCURRY` (movement with boundary reflections), `FREEZE` (1.5% frame probability to pause 0.5–1.5s replicating real prey caution), and `HIDDEN` (temporary off-screen respawn delay after a successful pounce).
 * **Available Sprites:**
-  * 🔴 **Laser Dot:** Dynamic radial glow gradient with bright center.
-  * 🪲 **Cockroach:** Directional beetle body with 6 articulated legs.
-  * 🐭 **Field Mouse:** Directional mouse body, pink ears, and sine-wave animated tail.
+  *  **Laser Dot:** Dynamic radial glow gradient with bright center.
+  *  **Cockroach:** Directional beetle body with 6 articulated legs.
+  *  **Field Mouse:** Directional mouse body, pink ears, and sine-wave animated tail.
 * **UI & Modes:**
   * Human setup overlay with prey selectors and setup recommendations.
   * In-game session with live pounce counter and subtle top-right exit button to return to settings.
@@ -365,11 +365,11 @@ timeline
 * **Biomimetic Prey AI & Sprites (`src/prey.js`):**
   * 5-State Markov FSM (`STALK_CREEP`, `DART_SPRINT`, `FREEZE_TREMOR`, `EDGE_SKITTER`, `CAUGHT_RESPAWN`).
   * 5 High-Fidelity Dichromatic Procedural Canvas Sprites:
-    * 🟡 **Laser Dot:** Radial core glow with fading trailing particle dispersion ribbon.
-    * 🪲 **Scurrying Roach:** Dark chitin body with yellow/cyan dorsal accents, 6 cycling jointed running legs, and sweeping antennae.
-    * 🐭 **Field Mouse:** Contoured rodent body, pink ears/snout, directional whiskers, and sinusoidal whipping tail kinematics.
-    * 🐟 **Koi Fish:** 3-segment articulating spinal joints, lateral pectoral fins, and continuous sinusoidal caudal tail wave.
-    * 🐝 **Bumblebee:** Striped yellow/black abdomen, 60Hz fluttering translucent cyan wing pairs, curved antennae, and stinger.
+    *  **Laser Dot:** Radial core glow with fading trailing particle dispersion ribbon.
+    *  **Scurrying Roach:** Dark chitin body with yellow/cyan dorsal accents, 6 cycling jointed running legs, and sweeping antennae.
+    *  **Field Mouse:** Contoured rodent body, pink ears/snout, directional whiskers, and sinusoidal whipping tail kinematics.
+    *  **Koi Fish:** 3-segment articulating spinal joints, lateral pectoral fins, and continuous sinusoidal caudal tail wave.
+    *  **Bumblebee:** Striped yellow/black abdomen, 60Hz fluttering translucent cyan wing pairs, curved antennae, and stinger.
   * Multi-prey concurrency manager supporting 1 to 4 concurrent prey.
 * **Touch Raycasting & Defense Shield (`src/input.js`, `src/defense.js`):**
   * Multi-touch continuous pointer tracking supporting up to 10 simultaneous touches.

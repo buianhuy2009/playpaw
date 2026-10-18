@@ -3,15 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="description" content="PawPlay - Biological-calibrated interactive web application for cats with Browser Tab Defense Shield and Pounce-Cam.">
-  <meta name="theme-color" content="#0A2239">
+  <meta name="description" content="PawPlay - High-contrast interactive game for cats with safety lock and selfie reaction camera.">
+  <meta name="theme-color" content="#0A131F">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="PawPlay">
   <link rel="manifest" href="/manifest.json">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐾</text></svg>">
-  <title>PawPlay — The Cat Toy</title>
+  <!-- Clean SVG Paw Favicon (No emojis) -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50 48 C42 48 35 56 36 67 C37 77 44 84 50 84 C56 84 63 77 64 67 C65 56 58 48 50 48 Z' fill='%23FFD600'/%3E%3Ccircle cx='28' cy='46' r='8' fill='%2300E5FF'/%3E%3Ccircle cx='42' cy='32' r='8' fill='%2300E5FF'/%3E%3Ccircle cx='58' cy='32' r='8' fill='%2300E5FF'/%3E%3Ccircle cx='72' cy='46' r='8' fill='%2300E5FF'/%3E%3C/svg%3E">
+  <title>PawPlay - The Cat Game</title>
 
   <style>
     * {
@@ -27,10 +28,11 @@
       width: 100%;
       height: 100%;
       overflow: hidden;
-      background-color: #0A2239;
+      background-color: #0A131F;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       overscroll-behavior: none;
       -webkit-tap-highlight-color: transparent;
+      color: #F8FAFC;
     }
 
     #gameCanvas {
@@ -43,174 +45,512 @@
       z-index: 1;
     }
 
-    /* HUD Bar */
-    #hud {
-      position: absolute;
-      top: 16px;
-      left: 16px;
-      right: 16px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      z-index: 5;
-      pointer-events: none;
-    }
-
-    .hud-chip {
-      background: rgba(16, 18, 26, 0.75);
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
-      color: #FFD600;
-      padding: 8px 16px;
-      border-radius: 24px;
-      font-size: 0.95rem;
-      font-weight: 700;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      border: 1px solid rgba(255, 214, 0, 0.25);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-    }
-
-    .hud-btn {
-      pointer-events: auto;
-      cursor: pointer;
-      background: rgba(16, 18, 26, 0.75);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      color: #FFF;
-      padding: 8px 14px;
-      border-radius: 20px;
-      font-size: 0.9rem;
-      font-weight: 600;
-      transition: all 0.2s;
-    }
-
-    .hud-btn:active {
-      transform: scale(0.95);
-      background: rgba(30, 35, 50, 0.9);
-    }
-
-    /* 8-Second Annulus Exit Lock (Bottom Right Corner) */
+    /* 8-Second Clockwise Annulus Exit Lock (Bottom Right Corner) */
+    /* THE ONLY VISIBLE CONTROL DURING ACTUAL GAMEPLAY */
     #exitLockWidget {
       position: absolute;
-      bottom: 16px;
-      right: 16px;
-      width: 56px;
-      height: 56px;
-      z-index: 8;
+      bottom: 20px;
+      right: 20px;
+      width: 58px;
+      height: 58px;
+      z-index: 10;
       cursor: pointer;
-      opacity: 0.2;
-      transition: opacity 0.3s ease;
+      opacity: 0.35;
+      transition: opacity 0.25s ease, transform 0.2s ease;
       touch-action: none;
+      background: rgba(10, 19, 31, 0.4);
+      border-radius: 50%;
     }
 
     #exitLockWidget:active, #exitLockWidget.holding {
       opacity: 0.95;
+      transform: scale(1.05);
+    }
+
+    /* ========================================================= */
+    /* FULLSCREEN MAIN MENU                                      */
+    /* ========================================================= */
+    .main-menu-screen {
+      position: absolute;
+      inset: 0;
+      z-index: 20;
+      background: #0A131F;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .menu-header {
+      padding: 20px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(10, 19, 31, 0.95);
+      position: sticky;
+      top: 0;
+      z-index: 25;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-icon {
+      width: 36px;
+      height: 36px;
+      fill: #FFD600;
+    }
+
+    .brand-title {
+      font-size: 1.4rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: #FFD600;
+      line-height: 1.1;
+    }
+
+    .brand-tagline {
+      font-size: 0.75rem;
+      color: #94A3B8;
+      font-weight: 500;
+    }
+
+    .header-nav {
+      display: flex;
+      gap: 10px;
+    }
+
+    .header-btn {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      color: #E2E8F0;
+      font-size: 0.82rem;
+      font-weight: 600;
+      padding: 8px 14px;
+      border-radius: 20px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+
+    .header-btn:hover {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    .header-btn:active {
+      transform: scale(0.96);
+    }
+
+    .badge-pill {
+      background: #00E5FF;
+      color: #0A131F;
+      font-size: 0.7rem;
+      font-weight: 800;
+      padding: 1px 6px;
+      border-radius: 10px;
+    }
+
+    .menu-content {
+      max-width: 960px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 24px 20px 48px;
+      flex: 1;
+    }
+
+    .section-intro {
+      margin-bottom: 20px;
+    }
+
+    .section-intro h2 {
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: #F8FAFC;
+      margin-bottom: 4px;
+    }
+
+    .section-intro p {
+      font-size: 0.88rem;
+      color: #94A3B8;
+    }
+
+    /* Maps Grid */
+    .maps-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+      gap: 16px;
+      width: 100%;
+    }
+
+    .map-card {
+      background: #141E2D;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 12px;
+      cursor: pointer;
+      transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      text-align: left;
+    }
+
+    .map-card:hover {
+      transform: translateY(-2px);
+      border-color: #00E5FF;
+      box-shadow: 0 8px 24px rgba(0, 229, 255, 0.15);
+    }
+
+    .map-card:active {
+      transform: scale(0.98);
+    }
+
+    .map-preview {
+      width: 100%;
+      aspect-ratio: 16/10;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Map Preview Patterns */
+    .preview-wood {
+      background: #E8E2D2;
+      background-image: repeating-linear-gradient(0deg, rgba(160, 140, 120, 0.25) 0px, rgba(160, 140, 120, 0.25) 1px, transparent 1px, transparent 24px);
+    }
+
+    .preview-rug {
+      background: #B85D19;
+      background-image: radial-gradient(rgba(255, 230, 200, 0.2) 1px, transparent 1px);
+      background-size: 8px 8px;
+    }
+
+    .preview-pond {
+      background: #0A2239;
+      background-image: radial-gradient(circle at 50% 50%, rgba(0, 229, 255, 0.3) 0%, transparent 60%);
+    }
+
+    .preview-night {
+      background: #10121A;
+      background-image: linear-gradient(rgba(0, 229, 255, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 229, 255, 0.05) 1px, transparent 1px);
+      background-size: 16px 16px;
+    }
+
+    .preview-grass {
+      background: #1E4620;
+      background-image: repeating-linear-gradient(90deg, rgba(45, 106, 79, 0.35) 0, rgba(45, 106, 79, 0.35) 20px, transparent 20px, transparent 40px);
+    }
+
+    .preview-marble {
+      background: #E2E6EA;
+      background-image: linear-gradient(45deg, rgba(140, 150, 165, 0.2) 25%, transparent 25%, transparent 50%, rgba(140, 150, 165, 0.2) 50%, rgba(140, 150, 165, 0.2) 75%, transparent 75%, transparent);
+      background-size: 40px 40px;
+    }
+
+    .preview-tatami {
+      background: #C5A96A;
+      background-image: repeating-linear-gradient(0deg, rgba(120, 95, 45, 0.2) 0px, rgba(120, 95, 45, 0.2) 1px, transparent 1px, transparent 6px);
+    }
+
+    .preview-space {
+      background: #080816;
+      background-image: radial-gradient(circle at 30% 40%, rgba(114, 9, 183, 0.4) 0%, transparent 50%), radial-gradient(circle at 70% 60%, rgba(67, 97, 238, 0.35) 0%, transparent 50%);
+    }
+
+    .map-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .map-name {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #F8FAFC;
+    }
+
+    .map-desc {
+      font-size: 0.76rem;
+      color: #94A3B8;
+      line-height: 1.3;
+    }
+
+    /* Map Settings View */
+    .settings-view {
+      display: none;
+      flex-direction: column;
+      gap: 20px;
+      max-width: 620px;
+      margin: 0 auto;
+    }
+
+    .selected-map-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 16px;
+      background: #141E2D;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 14px;
+    }
+
+    .back-btn {
+      background: transparent;
+      border: none;
+      color: #00E5FF;
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .settings-card {
+      background: #141E2D;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 18px;
+      padding: 22px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .setting-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .setting-header {
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #00E5FF;
+    }
+
+    .options-grid {
+      display: flex;
+      gap: 6px;
+      background: #0B111A;
+      padding: 4px;
+      border-radius: 12px;
+      width: 100%;
+    }
+
+    .opt-btn {
+      flex: 1;
+      padding: 10px 8px;
+      background: transparent;
+      border: none;
+      color: #94A3B8;
+      font-size: 0.84rem;
+      font-weight: 600;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: center;
+    }
+
+    .opt-btn.active {
+      background: #FFD600;
+      color: #0A131F;
+      font-weight: 700;
+      box-shadow: 0 2px 8px rgba(255, 214, 0, 0.3);
+    }
+
+    .toggle-row {
+      display: flex;
+      gap: 12px;
+    }
+
+    .toggle-card {
+      flex: 1;
+      background: #0B111A;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 12px;
+      padding: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+    }
+
+    .toggle-title {
+      font-size: 0.84rem;
+      font-weight: 700;
+      color: #E2E8F0;
+    }
+
+    .toggle-sub {
+      font-size: 0.72rem;
+      color: #94A3B8;
+    }
+
+    .switch-pill {
+      background: rgba(255, 255, 255, 0.1);
+      color: #94A3B8;
+      font-size: 0.75rem;
+      font-weight: 800;
+      padding: 4px 10px;
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      transition: all 0.2s;
+    }
+
+    .switch-pill.active {
+      background: #00E5FF;
+      color: #0A131F;
+      border-color: #00E5FF;
+    }
+
+    .start-btn {
+      background: #00E5FF;
+      color: #0A131F;
+      font-size: 1.15rem;
+      font-weight: 800;
+      padding: 15px;
+      border: none;
+      border-radius: 30px;
+      cursor: pointer;
+      box-shadow: 0 4px 20px rgba(0, 229, 255, 0.35);
+      transition: transform 0.15s, background-color 0.2s;
+      width: 100%;
+      margin-top: 6px;
+      text-align: center;
+    }
+
+    .start-btn:active {
+      transform: scale(0.97);
+    }
+
+    .play-notice {
+      text-align: center;
+      font-size: 0.78rem;
+      color: #64748B;
+      line-height: 1.4;
+      margin-top: -6px;
     }
 
     /* Modals & Overlays */
     .modal-overlay {
-      position: absolute;
+      position: fixed;
       inset: 0;
-      background: rgba(10, 15, 25, 0.92);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
+      background: rgba(10, 15, 25, 0.94);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
       display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      padding: 24px;
-      z-index: 20;
-      color: #FFF;
+      padding: 20px;
+      z-index: 50;
       text-align: center;
     }
 
     .modal-card {
-      background: #151A24;
+      background: #141E2D;
       border: 1px solid rgba(255, 255, 255, 0.12);
       border-radius: 20px;
       padding: 24px 20px;
-      max-width: 480px;
+      max-width: 500px;
       width: 100%;
-      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
       display: flex;
       flex-direction: column;
       align-items: center;
     }
 
-    h1, h2 {
-      color: #FFD600;
-      margin-bottom: 6px;
-    }
-
-    p.subtitle {
-      color: #A0AEC0;
-      font-size: 0.9rem;
-      margin-bottom: 16px;
-      line-height: 1.4;
-    }
-
-    /* Form Controls */
-    .deck-section {
+    /* Photo Gallery */
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 12px;
       width: 100%;
-      margin-bottom: 14px;
-      text-align: left;
+      max-height: 380px;
+      overflow-y: auto;
+      margin: 16px 0;
+      padding: 4px;
     }
 
-    .deck-label {
-      font-size: 0.8rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: #00E5FF;
-      margin-bottom: 6px;
-      font-weight: 700;
-    }
-
-    .segmented-control {
+    .gallery-item {
+      position: relative;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      aspect-ratio: 4/3;
+      background: #000;
       display: flex;
-      gap: 4px;
-      background: #0B0E14;
-      padding: 3px;
-      border-radius: 10px;
-      width: 100%;
+      flex-direction: column;
     }
 
-    .seg-btn {
-      flex: 1;
-      padding: 6px 8px;
-      background: transparent;
+    .gallery-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .gallery-actions {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(10, 19, 31, 0.85);
+      backdrop-filter: blur(4px);
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 6px;
+      align-items: center;
+    }
+
+    .dl-btn {
+      background: #00E5FF;
+      color: #0A131F;
       border: none;
-      color: #CBD5E0;
-      font-size: 0.8rem;
-      font-weight: 600;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 3px 8px;
       border-radius: 6px;
       cursor: pointer;
-      transition: all 0.2s;
     }
 
-    .seg-btn.active {
-      background: #FFD600;
-      color: #0A2239;
-      box-shadow: 0 2px 8px rgba(255, 214, 0, 0.3);
-    }
-
-    .action-btn {
-      background: #00E5FF;
-      color: #0A2239;
-      font-size: 1.15rem;
-      font-weight: 800;
-      padding: 14px 32px;
+    .del-btn {
+      background: rgba(239, 68, 68, 0.8);
+      color: #FFF;
       border: none;
-      border-radius: 50px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 3px 6px;
+      border-radius: 6px;
       cursor: pointer;
-      box-shadow: 0 4px 20px rgba(0, 229, 255, 0.4);
-      transition: transform 0.15s, background-color 0.2s;
-      width: 100%;
-      margin-top: 12px;
     }
 
-    .action-btn:active {
-      transform: scale(0.97);
+    /* Onboarding Carousel Specifics */
+    .onboarding-svg-container {
+      width: 100%;
+      margin-bottom: 16px;
+    }
+
+    .carousel-nav {
+      display: flex;
+      width: 100%;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 20px;
     }
 
     .secondary-btn {
@@ -226,66 +566,8 @@
       margin-top: 8px;
     }
 
-    /* Onboarding Carousel Specifics */
-    .onboarding-icon {
-      font-size: 3.5rem;
-      margin-bottom: 16px;
-      animation: floatIcon 3s ease-in-out infinite;
-    }
-
-    @keyframes floatIcon {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-8px); }
-    }
-
-    .carousel-nav {
-      display: flex;
-      width: 100%;
-      justify-content: space-between;
-      gap: 12px;
-      margin-top: 24px;
-    }
-
-    /* Photo Gallery Grid */
-    .gallery-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-      gap: 12px;
-      width: 100%;
-      max-height: 320px;
-      overflow-y: auto;
-      margin-bottom: 16px;
-      padding: 4px;
-    }
-
-    .gallery-item {
-      position: relative;
-      border-radius: 12px;
-      overflow: hidden;
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      aspect-ratio: 4/3;
-      background: #000;
-    }
-
-    .gallery-item img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: block;
-    }
-
-    .gallery-item button {
-      position: absolute;
-      top: 4px;
-      right: 4px;
-      background: rgba(255, 0, 0, 0.8);
-      border: none;
-      color: #FFF;
-      border-radius: 50%;
-      width: 24px;
-      height: 24px;
-      cursor: pointer;
-      font-size: 12px;
+    .secondary-btn:hover {
+      background: rgba(255, 255, 255, 0.05);
     }
   </style>
 </head>
@@ -294,158 +576,269 @@
   <!-- Game Canvas Backing Store -->
   <canvas id="gameCanvas"></canvas>
 
-  <!-- Heads Up Display -->
-  <div id="hud">
-    <div id="scoreBadge" class="hud-chip">🐾 <span id="scoreText">0</span></div>
-    <div id="timerChip" class="hud-chip">⏳ <span id="timerText">∞</span></div>
-    <div style="display: flex; gap: 8px;">
-      <button id="camToggleBtn" class="hud-btn" title="Toggle Pounce-Cam">📸 Cam</button>
-      <button id="settingsBtn" class="hud-btn" title="Settings">⚙️ Menu</button>
+  <!-- 8-Second Clockwise Annulus Exit Lock Widget -->
+  <!-- The ONLY button in the actual game -->
+  <div id="exitLockWidget" title="Hold 8 seconds to return to menu"></div>
+
+  <!-- FULLSCREEN MAIN MENU -->
+  <div id="mainMenuScreen" class="main-menu-screen">
+    <!-- Header -->
+    <header class="menu-header">
+      <div class="brand-group">
+        <svg class="brand-icon" viewBox="0 0 40 40">
+          <path d="M20 18 C16 18 12 22 13 28 C14 34 17 38 20 38 C23 38 26 34 27 28 C28 22 24 18 20 18 Z"/>
+          <circle cx="9" cy="17" r="4"/>
+          <circle cx="16" cy="10" r="4"/>
+          <circle cx="24" cy="10" r="4"/>
+          <circle cx="31" cy="17" r="4"/>
+        </svg>
+        <div>
+          <h1 class="brand-title">PawPlay</h1>
+          <p class="brand-tagline">Interactive Toy for Cats</p>
+        </div>
+      </div>
+      <nav class="header-nav">
+        <button id="menuPhotosBtn" class="header-btn" title="View captured photos">
+          Cat Photos <span id="photoBadge" class="badge-pill">0</span>
+        </button>
+        <button id="menuGuideBtn" class="header-btn" title="Screen locking guide">
+          Lock Guide
+        </button>
+      </nav>
+    </header>
+
+    <!-- Main Content Container -->
+    <div class="menu-content">
+      <!-- VIEW 1: MAPS GRID -->
+      <section id="mapsSection">
+        <div class="section-intro">
+          <h2>Select a Map</h2>
+          <p>Tap any map to configure prey and start playing:</p>
+        </div>
+
+        <div class="maps-grid" id="mapsGrid">
+          <!-- 1. Oak Wood Floor -->
+          <div class="map-card" data-map="wood">
+            <div class="map-preview preview-wood"></div>
+            <div class="map-info">
+              <div class="map-name">Oak Wood Floor</div>
+              <div class="map-desc">Warm blonde hardwood planks with subtle grain</div>
+            </div>
+          </div>
+
+          <!-- 2. Cozy Amber Rug -->
+          <div class="map-card" data-map="rug">
+            <div class="map-preview preview-rug"></div>
+            <div class="map-info">
+              <div class="map-name">Cozy Amber Rug</div>
+              <div class="map-desc">Soft textured woven rug with diamond weave</div>
+            </div>
+          </div>
+
+          <!-- 3. Koi Pond -->
+          <div class="map-card" data-map="pond">
+            <div class="map-preview preview-pond"></div>
+            <div class="map-info">
+              <div class="map-name">Koi Pond</div>
+              <div class="map-desc">Deep blue water with interactive splash ripples</div>
+            </div>
+          </div>
+
+          <!-- 4. Night Stalker -->
+          <div class="map-card" data-map="night">
+            <div class="map-preview preview-night"></div>
+            <div class="map-info">
+              <div class="map-name">Night Stalker</div>
+              <div class="map-desc">Dark slate tiles with high-contrast feline yellow</div>
+            </div>
+          </div>
+
+          <!-- 5. Garden Grass -->
+          <div class="map-card" data-map="grass">
+            <div class="map-preview preview-grass"></div>
+            <div class="map-info">
+              <div class="map-name">Garden Grass</div>
+              <div class="map-desc">Lush emerald lawn with soft clover patches</div>
+            </div>
+          </div>
+
+          <!-- 6. Kitchen Marble -->
+          <div class="map-card" data-map="marble">
+            <div class="map-preview preview-marble"></div>
+            <div class="map-info">
+              <div class="map-name">Kitchen Marble</div>
+              <div class="map-desc">Smooth polished marble counter with light veins</div>
+            </div>
+          </div>
+
+          <!-- 7. Tatami Mat -->
+          <div class="map-card" data-map="tatami">
+            <div class="map-preview preview-tatami"></div>
+            <div class="map-info">
+              <div class="map-name">Tatami Mat</div>
+              <div class="map-desc">Traditional Japanese woven straw mat</div>
+            </div>
+          </div>
+
+          <!-- 8. Cosmic Nebula -->
+          <div class="map-card" data-map="space">
+            <div class="map-preview preview-space"></div>
+            <div class="map-info">
+              <div class="map-name">Cosmic Nebula</div>
+              <div class="map-desc">Deep starry space with glowing violet dust</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 2: MAP SETTINGS PANEL (Shown after tapping a map) -->
+      <section id="settingsSection" class="settings-view">
+        <div class="selected-map-bar">
+          <button id="backToMapsBtn" class="back-btn">
+            &larr; Back to Maps
+          </button>
+          <span id="selectedMapLabel" style="font-weight: 700; color: #FFD600; font-size: 0.9rem;">
+            Oak Wood Floor
+          </span>
+        </div>
+
+        <div class="settings-card">
+          <!-- Prey Selection -->
+          <div class="setting-group">
+            <div class="setting-header">Target Prey</div>
+            <div class="options-grid" id="preySelector">
+              <button class="opt-btn active" data-val="mouse">Mouse</button>
+              <button class="opt-btn" data-val="bug">Beetle</button>
+              <button class="opt-btn" data-val="laser">Laser</button>
+              <button class="opt-btn" data-val="koi">Koi Fish</button>
+              <button class="opt-btn" data-val="bee">Bumblebee</button>
+            </div>
+          </div>
+
+          <!-- Concurrent Prey Count -->
+          <div class="setting-group">
+            <div class="setting-header">Number of Prey</div>
+            <div class="options-grid" id="countSelector">
+              <button class="opt-btn active" data-val="1">1</button>
+              <button class="opt-btn" data-val="2">2</button>
+              <button class="opt-btn" data-val="3">3</button>
+              <button class="opt-btn" data-val="4">4 (Multi-cat)</button>
+            </div>
+          </div>
+
+          <!-- Speed -->
+          <div class="setting-group">
+            <div class="setting-header">Speed Mode</div>
+            <div class="options-grid" id="speedSelector">
+              <button class="opt-btn" data-val="kitten">Gentle</button>
+              <button class="opt-btn active" data-val="hunter">Active</button>
+              <button class="opt-btn" data-val="apex">Fast</button>
+              <button class="opt-btn" data-val="ludicrous">Sprint</button>
+            </div>
+          </div>
+
+          <!-- Prey Size -->
+          <div class="setting-group">
+            <div class="setting-header">Prey Size</div>
+            <div class="options-grid" id="sizeSelector">
+              <button class="opt-btn" data-val="tiny">Normal (36px)</button>
+              <button class="opt-btn active" data-val="normal">Big (54px)</button>
+              <button class="opt-btn" data-val="chonky">Giant (76px)</button>
+            </div>
+          </div>
+
+          <!-- Sound and Camera Toggles -->
+          <div class="toggle-row">
+            <div class="toggle-card" id="soundToggleCard">
+              <div>
+                <div class="toggle-title">Attention Sounds</div>
+                <div class="toggle-sub">High-pitch squeaks & scurry</div>
+              </div>
+              <span id="soundSwitch" class="switch-pill active">ON</span>
+            </div>
+
+            <div class="toggle-card" id="camToggleCard">
+              <div>
+                <div class="toggle-title">Reaction Selfies</div>
+                <div class="toggle-sub">Snaps photo on catches</div>
+              </div>
+              <span id="camSwitch" class="switch-pill active">ON</span>
+            </div>
+          </div>
+
+          <!-- Start Button -->
+          <button id="startGameBtn" class="start-btn">Start Game</button>
+          <p class="play-notice">
+            The only button in the game is the X in the corner. Hold it for 8 seconds to return here.
+          </p>
+        </div>
+      </section>
     </div>
   </div>
 
-  <!-- 8-Second Clockwise Annulus Exit Lock Widget -->
-  <div id="exitLockWidget" title="Hold 8s to Exit"></div>
-
-  <!-- 1. Fullscreen First-Time Onboarding Walkthrough Carousel -->
+  <!-- 1. Fullscreen Onboarding Walkthrough Carousel -->
   <div id="onboardingModal" class="modal-overlay" style="display: none;">
     <div class="modal-card">
-      <div id="onboardingIcon" class="onboarding-icon">🐾</div>
+      <div id="onboardingIcon" class="onboarding-svg-container"></div>
       <div id="onboardingStep" style="font-size: 0.8rem; color: #00E5FF; font-weight: 700; text-transform: uppercase; margin-bottom: 6px;">Step 1 of 5</div>
-      <h2 id="onboardingTitle">Cat-Proofing & Stability</h2>
-      <p id="onboardingDesc" class="subtitle">Place your device on a rug or silicone mat so active pounces do not slide the tablet across the floor.</p>
+      <h2 id="onboardingTitle" style="color: #FFD600; margin-bottom: 8px;">Placement & Stability</h2>
+      <p id="onboardingDesc" style="color: #CBD5E0; font-size: 0.9rem; line-height: 1.5; margin-bottom: 16px;">Lay your tablet or phone flat on a rug or floor mat so it stays in place when your cat pounces.</p>
 
       <div class="carousel-nav">
-        <button id="onboardingPrevBtn" class="secondary-btn" style="flex: 1; margin-top: 0; visibility: hidden;">← Back</button>
-        <button id="onboardingNextBtn" class="action-btn" style="flex: 2; margin-top: 0;">Next →</button>
+        <button id="onboardingPrevBtn" class="secondary-btn" style="flex: 1; visibility: hidden;">&larr; Back</button>
+        <button id="onboardingNextBtn" class="start-btn" style="flex: 2; margin-top: 0; padding: 12px;">Next &rarr;</button>
       </div>
     </div>
   </div>
 
-  <!-- 2. Customization Deck Modal -->
-  <div id="settingsModal" class="modal-overlay" style="display: none;">
-    <div class="modal-card" style="max-height: 90vh; overflow-y: auto;">
-      <h2>🐾 Settings Deck</h2>
-      <p class="subtitle" style="margin-bottom: 16px;">Calibrate visual stimuli, speed, and session limits.</p>
-
-      <!-- Prey Selector -->
-      <div class="deck-section">
-        <div class="deck-label">Target Prey</div>
-        <div class="segmented-control" id="preySelector">
-          <button class="seg-btn active" data-val="mouse">🐭 Mouse</button>
-          <button class="seg-btn" data-val="bug">🪲 Roach</button>
-          <button class="seg-btn" data-val="laser">🟡 Laser</button>
-          <button class="seg-btn" data-val="koi">🐟 Koi</button>
-          <button class="seg-btn" data-val="bee">🐝 Bee</button>
-        </div>
-      </div>
-
-      <!-- Prey Count -->
-      <div class="deck-section">
-        <div class="deck-label">Concurrent Prey Count</div>
-        <div class="segmented-control" id="countSelector">
-          <button class="seg-btn active" data-val="1">1</button>
-          <button class="seg-btn" data-val="2">2</button>
-          <button class="seg-btn" data-val="3">3</button>
-          <button class="seg-btn" data-val="4">4 (Multi-Cat)</button>
-        </div>
-      </div>
-
-      <!-- Speed Mode -->
-      <div class="deck-section">
-        <div class="deck-label">Predatory Speed</div>
-        <div class="segmented-control" id="speedSelector">
-          <button class="seg-btn" data-val="kitten">Kitten</button>
-          <button class="seg-btn active" data-val="hunter">Hunter</button>
-          <button class="seg-btn" data-val="apex">Apex</button>
-          <button class="seg-btn" data-val="ludicrous">Ludicrous</button>
-        </div>
-      </div>
-
-      <!-- Theme Selector -->
-      <div class="deck-section">
-        <div class="deck-label">Contrast Theme</div>
-        <div class="segmented-control" id="themeSelector">
-          <button class="seg-btn" data-val="daylight">Daylight</button>
-          <button class="seg-btn" data-val="night">Night Stalker</button>
-          <button class="seg-btn active" data-val="pond">Koi Pond</button>
-        </div>
-      </div>
-
-      <!-- Session Timer -->
-      <div class="deck-section">
-        <div class="deck-label">Session Duration</div>
-        <div class="segmented-control" id="timerSelector">
-          <button class="seg-btn" data-val="1m">1 Min</button>
-          <button class="seg-btn" data-val="3m">3 Min</button>
-          <button class="seg-btn" data-val="5m">5 Min</button>
-          <button class="seg-btn active" data-val="unlimited">Unlimited</button>
-        </div>
-      </div>
-
-      <!-- Camera Trigger -->
-      <div class="deck-section">
-        <div class="deck-label">Pounce-Cam Snapshot Trigger</div>
-        <div class="segmented-control" id="cameraSelector">
-          <button class="seg-btn active" data-val="catch">On Catch</button>
-          <button class="seg-btn" data-val="near-miss">Near-Miss</button>
-          <button class="seg-btn" data-val="all">Every Swat</button>
-          <button class="seg-btn" data-val="disabled">Disabled</button>
-        </div>
-      </div>
-
-      <button id="startGameBtn" class="action-btn">Resume Hunt 🐾</button>
-      <div style="display: flex; gap: 8px; width: 100%;">
-        <button id="openGalleryBtn" class="secondary-btn">📸 Cat Cam Gallery</button>
-        <button id="openGuideBtn" class="secondary-btn">❓ Shield Guide</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 3. Anti-Frustration "Complete the Hunt" Treat Reward Modal -->
+  <!-- 2. Anti-Frustration Treat Reward Modal -->
   <div id="treatModal" class="modal-overlay" style="display: none;">
     <div class="modal-card">
-      <div style="font-size: 3.5rem; margin-bottom: 12px;">🍖</div>
-      <h2>Complete the Hunt!</h2>
-      <p class="subtitle" style="color: #FFD600; font-weight: 700; margin-bottom: 8px;">Pounces Caught: <span id="treatScore">0</span></p>
-      <p class="subtitle">
-        Toss your cat a physical treat, kibble, or crinkle toy right now!
-        Rewarding their tactile predatory instinct prevents psychological frustration.
+      <h2 style="color: #FFD600; margin-bottom: 8px;">Complete the Hunt!</h2>
+      <p style="color: #00E5FF; font-weight: 700; margin-bottom: 12px;">Prey Caught: <span id="treatScore">0</span></p>
+      <p style="color: #CBD5E0; font-size: 0.9rem; line-height: 1.5; margin-bottom: 20px;">
+        Toss your cat a real physical treat or crinkle toy right now!
+        Rewarding their natural hunting drive prevents frustration.
       </p>
-      <button id="treatRestartBtn" class="action-btn">Play Again 🐾</button>
-      <button id="treatMenuBtn" class="secondary-btn">Open Settings ⚙️</button>
+      <button id="treatMenuBtn" class="start-btn">Return to Main Menu</button>
+      <button id="treatRestartBtn" class="secondary-btn">Play Again</button>
     </div>
   </div>
 
-  <!-- 4. Photo Gallery Modal -->
+  <!-- 3. Photo Gallery Modal -->
   <div id="galleryModal" class="modal-overlay" style="display: none;">
-    <div class="modal-card">
-      <h2>📸 Reaction Vault</h2>
-      <p class="subtitle" style="margin-bottom: 12px;">Captured feline pounces saved locally to your device.</p>
-      <div id="galleryGrid" class="gallery-grid">
-        <p style="color: #718096; grid-column: 1/-1; text-align: center; padding: 24px;">No reaction snapshots captured yet. Start playing with camera enabled!</p>
+    <div class="modal-card" style="max-width: 580px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 12px;">
+        <h2 style="color: #FFD600; margin-bottom: 0;">Cat Reaction Photos</h2>
+        <button id="downloadAllPhotosBtn" class="dl-btn" style="padding: 6px 12px; font-size: 0.8rem;">Download All</button>
       </div>
-      <button id="closeGalleryBtn" class="action-btn">Close Vault</button>
+      <p style="color: #94A3B8; font-size: 0.82rem; margin-bottom: 12px; text-align: left; width: 100%;">
+        Photos captured when your cat caught prey. Tap Download on any photo to save directly to your device downloads folder.
+      </p>
+      <div id="galleryGrid" class="gallery-grid">
+        <p style="color: #64748B; grid-column: 1/-1; text-align: center; padding: 32px 0;">No reaction photos captured yet. Turn on camera to snap catches!</p>
+      </div>
+      <button id="closeGalleryBtn" class="secondary-btn">Close Photos</button>
     </div>
   </div>
 
-  <!-- 5. Tab Defense & Screen Pinning Guide Modal -->
+  <!-- 4. Tab Defense & Screen Pinning Guide Modal -->
   <div id="guideModal" class="modal-overlay" style="display: none;">
     <div class="modal-card">
-      <h2>🛡️ Guided Access Setup</h2>
-      <p class="subtitle">Completely lock browser tabs and OS gestures.</p>
-      <div style="text-align: left; font-size: 0.9rem; color: #CBD5E0; line-height: 1.6; margin-bottom: 20px;">
-        <p><b>🍏 iOS (iPad / iPhone):</b><br>1. Open Settings → Accessibility → Guided Access (turn ON).<br>2. Return to PawPlay and triple-click the Side/Home button.<br>3. Tap Start to disable swipe-to-exit gestures.</p>
+      <h2 style="color: #FFD600; margin-bottom: 12px;">Device Screen Lock Guide</h2>
+      <p style="color: #94A3B8; font-size: 0.85rem; margin-bottom: 16px;">Keep active paw swipes from closing the game.</p>
+      <div style="text-align: left; font-size: 0.88rem; color: #CBD5E0; line-height: 1.6; margin-bottom: 20px;">
+        <p><b style="color: #00E5FF;">Apple iOS (iPad & iPhone):</b><br>1. Open Settings &rarr; Accessibility &rarr; Guided Access (turn ON).<br>2. Return to PawPlay and triple-click the Side / Power button.<br>3. Tap Start in the top right corner to lock swipe-to-exit gestures.</p>
         <br>
-        <p><b>🤖 Android:</b><br>1. Open Settings → Security → App Pinning.<br>2. Open Overview screen and tap the PawPlay app icon → Pin.</p>
+        <p><b style="color: #00E5FF;">Android Devices:</b><br>1. Open Settings &rarr; Security &rarr; App Pinning (turn ON).<br>2. Open Overview / App Switcher and tap the PawPlay icon &rarr; Pin.</p>
       </div>
-      <button id="closeGuideBtn" class="action-btn">Got It!</button>
+      <button id="closeGuideBtn" class="start-btn">Got It</button>
     </div>
   </div>
 
   <!-- Main ES Module Application Entrypoint -->
   <script type="module">
-    import Engine from './src/engine.js';
+    import Engine, { THEMES } from './src/engine.js';
     import { PreyManager } from './src/prey.js';
     import InputController from './src/input.js';
     import DefenseShield from './src/defense.js';
@@ -457,14 +850,24 @@
     // 1. Initialize State Store
     const state = new AppState();
 
-    // 2. Initialize DOM Element References
+    // 2. DOM Elements Mapping
     const elements = {
       canvas: document.getElementById('gameCanvas'),
-      scoreText: document.getElementById('scoreText'),
-      timerText: document.getElementById('timerText'),
-      camToggleBtn: document.getElementById('camToggleBtn'),
-      settingsBtn: document.getElementById('settingsBtn'),
       exitLockWidget: document.getElementById('exitLockWidget'),
+      mainMenuScreen: document.getElementById('mainMenuScreen'),
+      mapsSection: document.getElementById('mapsSection'),
+      settingsSection: document.getElementById('settingsSection'),
+      mapsGrid: document.getElementById('mapsGrid'),
+      backToMapsBtn: document.getElementById('backToMapsBtn'),
+      selectedMapLabel: document.getElementById('selectedMapLabel'),
+      startGameBtn: document.getElementById('startGameBtn'),
+      soundToggleCard: document.getElementById('soundToggleCard'),
+      soundSwitch: document.getElementById('soundSwitch'),
+      camToggleCard: document.getElementById('camToggleCard'),
+      camSwitch: document.getElementById('camSwitch'),
+      menuPhotosBtn: document.getElementById('menuPhotosBtn'),
+      photoBadge: document.getElementById('photoBadge'),
+      menuGuideBtn: document.getElementById('menuGuideBtn'),
       onboardingModal: document.getElementById('onboardingModal'),
       onboardingIcon: document.getElementById('onboardingIcon'),
       onboardingStep: document.getElementById('onboardingStep'),
@@ -472,20 +875,19 @@
       onboardingDesc: document.getElementById('onboardingDesc'),
       onboardingPrevBtn: document.getElementById('onboardingPrevBtn'),
       onboardingNextBtn: document.getElementById('onboardingNextBtn'),
-      settingsModal: document.getElementById('settingsModal'),
-      startGameBtn: document.getElementById('startGameBtn'),
       treatModal: document.getElementById('treatModal'),
       treatScore: document.getElementById('treatScore'),
       treatRestartBtn: document.getElementById('treatRestartBtn'),
       treatMenuBtn: document.getElementById('treatMenuBtn'),
       galleryModal: document.getElementById('galleryModal'),
       galleryGrid: document.getElementById('galleryGrid'),
+      downloadAllPhotosBtn: document.getElementById('downloadAllPhotosBtn'),
       closeGalleryBtn: document.getElementById('closeGalleryBtn'),
-      openGalleryBtn: document.getElementById('openGalleryBtn'),
       guideModal: document.getElementById('guideModal'),
-      openGuideBtn: document.getElementById('openGuideBtn'),
       closeGuideBtn: document.getElementById('closeGuideBtn'),
-      timerDisplay: document.getElementById('timerText')
+      scoreText: document.createElement('span'),
+      timerText: document.createElement('span'),
+      timerDisplay: document.createElement('span')
     };
 
     // 3. Initialize Core Subsystems
@@ -496,50 +898,66 @@
     const audio = new SoundSynthesizer();
     const camera = new PounceCam();
     const ui = new UIController(state, elements);
+
     window.pawplay = { engine, preyManager, input, defense, audio, camera, ui, state, elements };
 
-    // Initial Subsystem Configuration from State
-    const initialConfig = state.get();
-    engine.setTheme(initialConfig.theme);
-    preyManager.init(initialConfig.count, initialConfig.prey, initialConfig.speed, initialConfig.size);
-    camera.setTriggerMode(initialConfig.cameraTrigger);
-    audio.setVolume(initialConfig.volume);
+    // Initial Configuration
+    let selectedTheme = state.get('theme') || 'wood';
+    if (!THEMES[selectedTheme]) selectedTheme = 'wood';
+    engine.setTheme(selectedTheme);
+    preyManager.init(
+      state.get('count') || 1,
+      state.get('prey') || 'mouse',
+      state.get('speed') || 'hunter',
+      state.get('size') || 'normal'
+    );
+    camera.setTriggerMode(state.get('cameraTrigger') || 'catch');
+    audio.setVolume(state.get('volume') !== undefined ? state.get('volume') : 0.8);
 
-    // 4. Bind Input Controller to Raycasting & Ripples
+    // Refresh photo count badge
+    async function updatePhotoCount() {
+      try {
+        const photos = await camera.getPhotos();
+        if (elements.photoBadge) {
+          elements.photoBadge.textContent = photos.length;
+        }
+      } catch (e) {}
+    }
+    updatePhotoCount();
+
+    // 4. Bind Input Controller
     input.init(
       elements.canvas,
-      // On Pounce Swat: (x1, y1, x2, y2, pointerId)
+      // On Swat: (x1, y1, x2, y2)
       (x1, y1, x2, y2) => {
         engine.resetIdleTimer();
         const hits = preyManager.checkRaycastHit(x1, y1, x2, y2);
         if (hits.length > 0) {
           hits.forEach((prey) => {
-            // Trigger Caught State
             prey.changeState('CAUGHT_RESPAWN', 0.88);
             engine.score++;
-            elements.scoreText.textContent = engine.score;
 
-            // Visual Burst
+            // Visual burst & ripples
             engine.spawnBurst(prey.x, prey.y);
 
-            // Audio & Haptic Feedback
+            // Audio feedback
             audio.playPreyCatch(prey.type);
 
-            // Camera Reaction Snapshot
-            camera.captureSnapshot('catch');
+            // Camera snapshot
+            camera.captureSnapshot('catch').then(() => updatePhotoCount()).catch(() => {});
           });
         } else {
-          // Near-miss check (within 100px)
+          // Near-miss check
           for (const p of preyManager.preyList) {
             const d = Math.hypot(p.x - x2, p.y - y2);
-            if (d < 100 && !p.isRespawning) {
-              camera.captureSnapshot('near-miss');
+            if (d < 110 && !p.isRespawning) {
+              camera.captureSnapshot('near-miss').then(() => updatePhotoCount()).catch(() => {});
               break;
             }
           }
         }
       },
-      // On Touch Down: Trigger Interactive Water Ripple
+      // On Touch Down: Interactive Water Ripple (Koi Pond theme)
       (x, y) => {
         engine.addRipple(x, y, 1.0);
       }
@@ -548,42 +966,46 @@
     // 5. Bind Browser Tab Defense Shield
     defense.enableBeforeUnload(() => engine.isPlaying);
     defense.initVisibilityHandler(
-      // On Tab Hidden
       () => {
         engine.isPaused = true;
         audio.mute(true);
       },
-      // On Tab Visible
       () => {
         audio.mute(state.get('volume') === 0);
-        ui.openSettings();
       }
     );
 
     // Bind 8-Second Clockwise Annulus Exit Lock
+    // Holding for 8 seconds returns cleanly to the full screen Main Menu
     defense.initAnnulusLock(elements.exitLockWidget, () => {
       engine.stop();
       ui.releaseWakeLock();
-      ui.showTreatModal({ score: engine.score });
+      audio.playTreatChime();
+      returnToMainMenu();
     });
 
-    // 6. Connect 120Hz Delta-Time Render Loop
+    function returnToMainMenu() {
+      elements.mainMenuScreen.style.display = 'flex';
+      elements.exitLockWidget.style.display = 'none';
+      updatePhotoCount();
+    }
+
+    // 6. Connect Render Loop
     engine.start((dt) => {
       const safeArea = engine.getDimensions().safeArea;
 
-      // Update prey physics
+      // Update prey physics with off-screen excursion steering
       preyManager.update(dt, safeArea);
 
-      // Enforce safe margins on all prey
+      // Safe margins with allowOffscreen = true so prey can go off-screen but not for long
       for (const prey of preyManager.preyList) {
-        engine.applySafeMargins(prey, dt);
+        engine.applySafeMargins(prey, dt, true);
       }
 
-      // Check 12-second idle acoustic lure
+      // Check 12-second acoustic idle lure
       if (engine.idleTime >= 12.0) {
         audio.triggerAcousticLure();
         engine.resetIdleTimer();
-        // Lure chirp triggers dart sprint escape
         for (const prey of preyManager.preyList) {
           if (prey.state !== 'CAUGHT_RESPAWN') {
             prey.changeState('DART_SPRINT', 0.8);
@@ -591,27 +1013,28 @@
         }
       }
 
-      // Session Timer Tick
-      if (ui.tickSession(dt)) {
-        // Session expired!
-        engine.stop();
-        audio.playTreatChime();
-        ui.showTreatModal({ score: engine.score });
-      }
-
-      // Draw Prey Sprites on Top of Theme Layer
+      // Render prey sprites on top of active map theme
       preyManager.draw(engine.ctx);
     });
 
-    // 7. UI Wire-Up: Onboarding & Settings
+    // 7. Fullscreen Main Menu & Map Navigation Wire-up
+    // Hide exit lock widget while on the menu
+    elements.exitLockWidget.style.display = 'none';
+
+    // Show onboarding if first time
     if (!state.isOnboarded()) {
-      ui.showOnboarding();
+      ui.showOnboarding(() => {
+        elements.mainMenuScreen.style.display = 'flex';
+      });
+    } else {
+      elements.mainMenuScreen.style.display = 'flex';
     }
 
     elements.onboardingNextBtn.addEventListener('click', () => {
       if (ui.currentSlide === ui.totalSlides - 1) {
         ui.finishOnboarding();
         audio.unlock();
+        elements.mainMenuScreen.style.display = 'flex';
       } else {
         ui.nextSlide();
       }
@@ -621,22 +1044,36 @@
       ui.prevSlide();
     });
 
-    elements.settingsBtn.addEventListener('click', () => {
-      ui.openSettings();
+    // Clicking a map card opens settings for that map
+    const mapCards = elements.mapsGrid.querySelectorAll('.map-card');
+    mapCards.forEach((card) => {
+      card.addEventListener('click', () => {
+        const mapId = card.getAttribute('data-map');
+        selectedTheme = mapId;
+        state.update({ theme: mapId });
+        engine.setTheme(mapId);
+
+        // Update selected map label
+        const mapName = THEMES[mapId] ? THEMES[mapId].name : mapId;
+        elements.selectedMapLabel.textContent = mapName;
+
+        // Switch to Settings view
+        elements.mapsSection.style.display = 'none';
+        elements.settingsSection.style.display = 'flex';
+      });
     });
 
-    elements.startGameBtn.addEventListener('click', () => {
-      audio.unlock();
-      ui.closeSettings();
-      ui.startSession(state.get('timerMode'));
-      engine.start();
+    // Back to Maps button
+    elements.backToMapsBtn.addEventListener('click', () => {
+      elements.settingsSection.style.display = 'none';
+      elements.mapsSection.style.display = 'block';
     });
 
-    // Segmented Controls Sync
-    function bindSegmentedControl(containerId, stateKey, onChange) {
+    // Generic segmented pill selector
+    function bindPillGroup(containerId, stateKey, onChange) {
       const container = document.getElementById(containerId);
       if (!container) return;
-      const btns = container.querySelectorAll('.seg-btn');
+      const btns = container.querySelectorAll('.opt-btn');
       btns.forEach((btn) => {
         btn.addEventListener('click', () => {
           btns.forEach(b => b.classList.remove('active'));
@@ -648,84 +1085,150 @@
       });
     }
 
-    bindSegmentedControl('preySelector', 'prey', (val) => preyManager.setPreyType(val));
-    bindSegmentedControl('countSelector', 'count', (val) => preyManager.setCount(Number(val)));
-    bindSegmentedControl('speedSelector', 'speed', (val) => preyManager.setSpeedMode(val));
-    bindSegmentedControl('themeSelector', 'theme', (val) => engine.setTheme(val));
-    bindSegmentedControl('timerSelector', 'timerMode', (val) => ui.startSession(val));
-    bindSegmentedControl('cameraSelector', 'cameraTrigger', (val) => {
-      camera.setTriggerMode(val);
-      if (val !== 'disabled') camera.init().catch(() => {});
+    bindPillGroup('preySelector', 'prey', (val) => preyManager.setPreyType(val));
+    bindPillGroup('countSelector', 'count', (val) => preyManager.setCount(Number(val)));
+    bindPillGroup('speedSelector', 'speed', (val) => preyManager.setSpeedMode(val));
+    bindPillGroup('sizeSelector', 'size', (val) => preyManager.setSizeMode(val));
+
+    // Sound toggle
+    let soundEnabled = true;
+    elements.soundToggleCard.addEventListener('click', () => {
+      soundEnabled = !soundEnabled;
+      elements.soundSwitch.classList.toggle('active', soundEnabled);
+      elements.soundSwitch.textContent = soundEnabled ? 'ON' : 'OFF';
+      audio.mute(!soundEnabled);
+      state.update({ volume: soundEnabled ? 0.8 : 0 });
     });
 
-    // Camera Toggle Button in HUD
-    elements.camToggleBtn.addEventListener('click', async () => {
-      audio.unlock();
-      if (!camera.isEnabled) {
-        try {
-          await camera.init();
-          camera.setTriggerMode('catch');
-          elements.camToggleBtn.style.color = '#00E5FF';
-        } catch (e) {
-          alert('Camera permission denied or camera not available.');
-        }
+    // Camera toggle
+    let cameraEnabled = true;
+    elements.camToggleCard.addEventListener('click', async () => {
+      cameraEnabled = !cameraEnabled;
+      elements.camSwitch.classList.toggle('active', cameraEnabled);
+      elements.camSwitch.textContent = cameraEnabled ? 'ON' : 'OFF';
+
+      if (cameraEnabled) {
+        camera.setTriggerMode('catch');
+        camera.init().catch(() => {});
       } else {
         camera.setTriggerMode('disabled');
-        elements.camToggleBtn.style.color = '#FFF';
       }
+      state.update({ cameraTrigger: cameraEnabled ? 'catch' : 'disabled' });
+    });
+
+    // START GAME ACTION
+    elements.startGameBtn.addEventListener('click', async () => {
+      await audio.unlock();
+
+      if (cameraEnabled && !camera.isEnabled) {
+        try {
+          await camera.init();
+        } catch (e) {}
+      }
+
+      // Hide Main Menu
+      elements.mainMenuScreen.style.display = 'none';
+
+      // Display ONLY the X button in the actual game
+      elements.exitLockWidget.style.display = 'block';
+
+      // Start engine session
+      ui.startSession('unlimited');
+      engine.score = 0;
+      engine.start();
+    });
+
+    // Photo Gallery Handlers
+    elements.menuPhotosBtn.addEventListener('click', async () => {
+      renderGallery();
+      elements.galleryModal.style.display = 'flex';
+    });
+
+    elements.closeGalleryBtn.addEventListener('click', () => {
+      elements.galleryModal.style.display = 'none';
+      updatePhotoCount();
+    });
+
+    async function renderGallery() {
+      const photos = await camera.getPhotos();
+      elements.galleryGrid.innerHTML = '';
+
+      if (photos.length === 0) {
+        elements.galleryGrid.innerHTML = `
+          <p style="color: #64748B; grid-column: 1/-1; text-align: center; padding: 32px 0;">
+            No reaction photos captured yet. Turn on camera to snap catches!
+          </p>
+        `;
+        return;
+      }
+
+      photos.forEach((photo) => {
+        const item = document.createElement('div');
+        item.className = 'gallery-item';
+        item.innerHTML = `
+          <img src="${photo.dataUrl}" alt="Cat pounce reaction">
+          <div class="gallery-actions">
+            <button class="dl-btn" data-id="${photo.id}">Download</button>
+            <button class="del-btn" data-id="${photo.id}">X</button>
+          </div>
+        `;
+
+        // Direct Download Button
+        item.querySelector('.dl-btn').addEventListener('click', (e) => {
+          e.stopPropagation();
+          const filenameDate = new Date(photo.timestamp || Date.now()).toISOString().slice(0, 19).replace(/[:T]/g, '-');
+          camera.downloadPhoto(photo.dataUrl, `cat-pounce-${filenameDate}.jpg`);
+        });
+
+        // Delete Button
+        item.querySelector('.del-btn').addEventListener('click', async (e) => {
+          e.stopPropagation();
+          await camera.deletePhoto(photo.id);
+          item.remove();
+          updatePhotoCount();
+          if (elements.galleryGrid.children.length === 0) {
+            renderGallery();
+          }
+        });
+
+        elements.galleryGrid.appendChild(item);
+      });
+    }
+
+    // Download All Photos button
+    elements.downloadAllPhotosBtn.addEventListener('click', async () => {
+      const photos = await camera.getPhotos();
+      if (photos.length === 0) return;
+
+      photos.forEach((photo, idx) => {
+        setTimeout(() => {
+          const filenameDate = new Date(photo.timestamp || Date.now()).toISOString().slice(0, 19).replace(/[:T]/g, '-');
+          camera.downloadPhoto(photo.dataUrl, `cat-pounce-${filenameDate}-${idx + 1}.jpg`);
+        }, idx * 250);
+      });
+    });
+
+    // Guide Modal
+    elements.menuGuideBtn.addEventListener('click', () => {
+      elements.guideModal.style.display = 'flex';
+    });
+
+    elements.closeGuideBtn.addEventListener('click', () => {
+      elements.guideModal.style.display = 'none';
     });
 
     // Treat Screen Controls
     elements.treatRestartBtn.addEventListener('click', () => {
       ui.hideTreatModal();
+      elements.mainMenuScreen.style.display = 'none';
+      elements.exitLockWidget.style.display = 'block';
       engine.score = 0;
-      elements.scoreText.textContent = '0';
-      ui.startSession(state.get('timerMode'));
       engine.start();
     });
 
     elements.treatMenuBtn.addEventListener('click', () => {
       ui.hideTreatModal();
-      ui.openSettings();
-    });
-
-    // Photo Gallery Modal
-    elements.openGalleryBtn.addEventListener('click', async () => {
-      ui.closeSettings();
-      elements.galleryModal.style.display = 'flex';
-      const photos = await camera.getPhotos();
-      if (photos.length > 0) {
-        elements.galleryGrid.innerHTML = '';
-        photos.forEach((photo) => {
-          const item = document.createElement('div');
-          item.className = 'gallery-item';
-          item.innerHTML = `
-            <img src="${photo.dataUrl}" alt="Cat reaction">
-            <button title="Delete photo">✕</button>
-          `;
-          item.querySelector('button').addEventListener('click', async () => {
-            await camera.deletePhoto(photo.id);
-            item.remove();
-          });
-          elements.galleryGrid.appendChild(item);
-        });
-      }
-    });
-
-    elements.closeGalleryBtn.addEventListener('click', () => {
-      elements.galleryModal.style.display = 'none';
-      ui.openSettings();
-    });
-
-    // Guide Modal
-    elements.openGuideBtn.addEventListener('click', () => {
-      ui.closeSettings();
-      ui.openGuideModal();
-    });
-
-    elements.closeGuideBtn.addEventListener('click', () => {
-      ui.closeGuideModal();
-      ui.openSettings();
+      returnToMainMenu();
     });
 
     // 8. Register Service Worker for Offline PWA Reliability

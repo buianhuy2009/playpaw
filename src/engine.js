@@ -8,7 +8,7 @@
  */
 
 // -------------------------------------------------------------
-// 🔒 Authoritative Constants & Palettes
+// Authoritative Constants & Palettes
 // -------------------------------------------------------------
 export const SAFE_MARGINS = {
   TOP: 72,     // Clearance from top browser tab bar & address bar
@@ -37,23 +37,30 @@ export const MAX_DT = 0.05;            // 50ms clamp (prevents spiral of death /
 export const THEMES = {
   daylight: {
     id: 'daylight',
-    name: 'Daylight Floor',
+    name: 'Oak Wood Floor',
     bg: '#F4F1EA',
     contrastColor: '#1A110B',
     ripples: false
   },
   floor: {
     id: 'daylight',
-    name: 'Daylight Floor',
+    name: 'Oak Wood Floor',
     bg: '#F4F1EA',
     contrastColor: '#1A110B',
     ripples: false
   },
-  night: {
-    id: 'night',
-    name: 'Night Stalker',
-    bg: '#10121A',
-    contrastColor: '#FFD600',
+  wood: {
+    id: 'wood',
+    name: 'Oak Wood Floor',
+    bg: '#F4F1EA',
+    contrastColor: '#1A110B',
+    ripples: false
+  },
+  rug: {
+    id: 'rug',
+    name: 'Cozy Amber Rug',
+    bg: '#B85D19',
+    contrastColor: '#FFFFFF',
     ripples: false
   },
   pond: {
@@ -62,6 +69,41 @@ export const THEMES = {
     bg: '#0A2239',
     contrastColor: '#00E5FF',
     ripples: true
+  },
+  night: {
+    id: 'night',
+    name: 'Night Stalker',
+    bg: '#10121A',
+    contrastColor: '#FFD600',
+    ripples: false
+  },
+  grass: {
+    id: 'grass',
+    name: 'Garden Grass',
+    bg: '#1E4620',
+    contrastColor: '#FFD600',
+    ripples: false
+  },
+  marble: {
+    id: 'marble',
+    name: 'Kitchen Marble',
+    bg: '#E2E6EA',
+    contrastColor: '#1A202C',
+    ripples: false
+  },
+  tatami: {
+    id: 'tatami',
+    name: 'Tatami Mat',
+    bg: '#C5A96A',
+    contrastColor: '#212529',
+    ripples: false
+  },
+  space: {
+    id: 'space',
+    name: 'Cosmic Nebula',
+    bg: '#0B081A',
+    contrastColor: '#00E5FF',
+    ripples: false
   }
 };
 
@@ -371,7 +413,7 @@ export class Engine {
    * @param {Object} sprite - Entity with { x, y, vx, vy, radius }
    * @param {number} [dt=0.016] - Delta-time in seconds
    */
-  applySafeMargins(sprite, dt = 0.016) {
+  applySafeMargins(sprite, dt = 0.016, allowOffscreen = false) {
     if (!sprite || typeof sprite !== 'object') return;
 
     // Viewport dimensions with strict positive finite checks
@@ -387,11 +429,11 @@ export class Engine {
     }
     const R = sprite.radius;
 
-    // 2. Safe boundaries calculation
-    const xMin = SAFE_MARGINS.SIDES + R;
-    const xMax = width - SAFE_MARGINS.SIDES - R;
-    const yMin = SAFE_MARGINS.TOP + R;
-    const yMax = height - SAFE_MARGINS.BOTTOM - R;
+    // 2. Safe boundaries calculation (allows brief offscreen excursions when allowOffscreen is true)
+    const xMin = allowOffscreen ? -R * 0.5 : SAFE_MARGINS.SIDES + R;
+    const xMax = allowOffscreen ? width + R * 0.5 : width - SAFE_MARGINS.SIDES - R;
+    const yMin = allowOffscreen ? -R * 0.5 : SAFE_MARGINS.TOP + R;
+    const yMax = allowOffscreen ? height + R * 0.5 : height - SAFE_MARGINS.BOTTOM - R;
 
     // 3. Compute geometric center of safe margins
     const safeCenterX = (xMin <= xMax) ? (xMin + xMax) / 2 : width / 2;
@@ -880,6 +922,123 @@ export class Engine {
             }
           }
         }
+        break;
+      }
+
+      case 'rug': {
+        // Cozy Amber Rug with woven texture and subtle borders
+        ctx.fillStyle = '#B85D19';
+        ctx.fillRect(0, 0, w, h);
+
+        ctx.strokeStyle = 'rgba(255, 230, 200, 0.08)';
+        ctx.lineWidth = 1.0;
+        const rugSpacing = 28;
+        ctx.beginPath();
+        for (let x = -h; x < w + h; x += rugSpacing) {
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x + h, h);
+          ctx.moveTo(x + h, 0);
+          ctx.lineTo(x, h);
+        }
+        ctx.stroke();
+
+        ctx.strokeStyle = 'rgba(255, 215, 160, 0.25)';
+        ctx.lineWidth = 6.0;
+        ctx.strokeRect(16, 16, w - 32, h - 32);
+        break;
+      }
+
+      case 'grass': {
+        // Garden Green Grass with lawn stripes and clover
+        ctx.fillStyle = '#1E4620';
+        ctx.fillRect(0, 0, w, h);
+
+        const stripeW = 90;
+        for (let x = 0; x < w; x += stripeW * 2) {
+          ctx.fillStyle = 'rgba(45, 106, 79, 0.25)';
+          ctx.fillRect(x, 0, stripeW, h);
+        }
+
+        ctx.fillStyle = 'rgba(116, 198, 157, 0.15)';
+        for (let gx = 40; gx < w; gx += 140) {
+          for (let gy = 50; gy < h; gy += 130) {
+            ctx.beginPath();
+            ctx.arc(gx - 4, gy, 5, 0, Math.PI * 2);
+            ctx.arc(gx + 4, gy, 5, 0, Math.PI * 2);
+            ctx.arc(gx, gy - 4, 5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+        break;
+      }
+
+      case 'marble': {
+        // Polished Kitchen Marble with subtle veins
+        ctx.fillStyle = '#E2E6EA';
+        ctx.fillRect(0, 0, w, h);
+
+        ctx.strokeStyle = 'rgba(140, 150, 165, 0.22)';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(0, h * 0.2);
+        ctx.bezierCurveTo(w * 0.3, h * 0.35, w * 0.6, h * 0.1, w, h * 0.4);
+        ctx.stroke();
+
+        ctx.strokeStyle = 'rgba(160, 170, 185, 0.15)';
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.moveTo(0, h * 0.7);
+        ctx.bezierCurveTo(w * 0.4, h * 0.85, w * 0.7, h * 0.55, w, h * 0.75);
+        ctx.stroke();
+        break;
+      }
+
+      case 'tatami': {
+        // Traditional Straw Tatami Mat
+        ctx.fillStyle = '#C5A96A';
+        ctx.fillRect(0, 0, w, h);
+
+        ctx.strokeStyle = 'rgba(120, 95, 45, 0.15)';
+        ctx.lineWidth = 1.0;
+        for (let y = 0; y < h; y += 14) {
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(w, y);
+          ctx.stroke();
+        }
+
+        ctx.fillStyle = '#212529';
+        ctx.fillRect(0, 0, 36, h);
+        ctx.fillRect(w - 36, 0, 36, h);
+        break;
+      }
+
+      case 'space': {
+        // Cosmic Nebula & Starfield
+        ctx.fillStyle = '#080816';
+        ctx.fillRect(0, 0, w, h);
+
+        if (typeof ctx.createRadialGradient === 'function') {
+          const nGrad = ctx.createRadialGradient(w * 0.4, h * 0.4, 10, w * 0.4, h * 0.4, Math.max(w, h) * 0.65);
+          nGrad.addColorStop(0, 'rgba(114, 9, 183, 0.35)');
+          nGrad.addColorStop(0.5, 'rgba(67, 97, 238, 0.2)');
+          nGrad.addColorStop(1, 'rgba(8, 8, 22, 0)');
+          ctx.fillStyle = nGrad;
+          ctx.fillRect(0, 0, w, h);
+        }
+
+        ctx.fillStyle = '#FFFFFF';
+        const numStars = 40;
+        for (let i = 0; i < numStars; i++) {
+          const sx = ((i * 197 + 37) % w);
+          const sy = ((i * 311 + 61) % h);
+          const sR = (i % 3 === 0) ? 1.5 : 1.0;
+          ctx.globalAlpha = 0.3 + (i % 5) * 0.15;
+          ctx.beginPath();
+          ctx.arc(sx, sy, sR, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1.0;
         break;
       }
     }

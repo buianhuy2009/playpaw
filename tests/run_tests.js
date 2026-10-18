@@ -31,7 +31,7 @@ const DIM = '\x1b[2m';
 const RESET = '\x1b[0m';
 
 async function main() {
-  console.log(`\n${BOLD}${CYAN}🐾 PawPlay Biological-Calibrated E2E Test Suite${RESET}`);
+  console.log(`\n${BOLD}${CYAN}PawPlay Biological-Calibrated E2E Test Suite${RESET}`);
   console.log(`${DIM}Running 4-Tier Test Matrix (Features, Boundaries, Pairwise, Scenarios)...${RESET}\n`);
 
   framework.defaultRunner.onSuiteStart = (suite) => {
@@ -66,7 +66,7 @@ async function main() {
     console.error(`${RED}${BOLD}FAILED: ${results.failed} tests failed.${RESET}\n`);
     process.exit(1);
   } else {
-    console.log(`${GREEN}${BOLD}PASSED: All ${results.total} test cases across Tiers 1–4 passed with 100% success! 🐾${RESET}\n`);
+    console.log(`${GREEN}${BOLD}PASSED: All ${results.total} test cases across Tiers 1–4 passed with 100% success!${RESET}\n`);
     process.exit(0);
   }
 }
