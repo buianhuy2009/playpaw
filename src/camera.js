@@ -55,7 +55,17 @@ export class PounceCam {
             this.videoElement.setAttribute('autoplay', '');
             this.videoElement.setAttribute('muted', '');
             this.videoElement.setAttribute('playsinline', '');
-            this.videoElement.style.display = 'none';
+            this.videoElement.setAttribute('webkit-playsinline', '');
+            this.videoElement.playsInline = true;
+            this.videoElement.muted = true;
+            this.videoElement.autoplay = true;
+            // CRITICAL for iOS / iPad Safari WebKit:
+            // Hidden/unattached video elements stop decoding to save power.
+            // Attaching with 0.001 opacity and fixed dimensions keeps decoding active.
+            this.videoElement.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:320px;height:240px;opacity:0.001;pointer-events:none;z-index:-1;';
+            if (document.body) {
+              document.body.appendChild(this.videoElement);
+            }
           }
           this.videoElement.srcObject = this.stream;
           if (typeof this.videoElement.play === 'function') {
@@ -110,14 +120,15 @@ export class PounceCam {
       return null;
     }
 
-    // Filter by configured trigger policy
-    if (this.triggerMode === 'catch' && trigger !== 'catch') return null;
-    if (this.triggerMode === 'near-miss' && trigger !== 'near-miss') return null;
+    // Filter by configured trigger policy (allow 'curious-look' as bonus reaction)
+    if (this.triggerMode === 'catch' && trigger !== 'catch' && trigger !== 'curious-look') return null;
+    if (this.triggerMode === 'near-miss' && trigger !== 'near-miss' && trigger !== 'curious-look') return null;
 
     let dataUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 
     // Capture from offscreen video element if available
-    if (this.videoElement && this.videoElement.videoWidth > 0 && typeof document !== 'undefined') {
+    const hasVideo = this.videoElement && (this.videoElement.videoWidth > 0 || (this.videoElement.readyState && this.videoElement.readyState >= 2));
+    if (hasVideo && typeof document !== 'undefined') {
       try {
         const offCanvas = document.createElement('canvas');
         const w = this.videoElement.videoWidth || 640;
@@ -201,9 +212,38 @@ export class PounceCam {
     if (typeof document === 'undefined') return;
     const dateStr = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
     const safeName = filename || `pawplay-cat-pounce-${dateStr}.jpg`;
+
+    // 1. On iOS / iPad Safari: Web Share API provides native "Save Image" to Photos
+    const isIOS = typeof navigator !== 'undefined' && (
+      /iPad|iPhone|iPod/.test(navigator.userAgent || '') ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+    );
+
+    if (isIOS && typeof navigator.share === 'function' && typeof fetch === 'function') {
+      fetch(dataUrl)
+        .then(res => res.blob())
+        .then(blob => {
+          const file = new File([blob], safeName, { type: 'image/jpeg' });
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            return navigator.share({
+              files: [file],
+              title: 'PawPlay Cat Photo'
+            });
+          }
+          this._fallbackDownload(dataUrl, safeName);
+        })
+        .catch(() => this._fallbackDownload(dataUrl, safeName));
+      return;
+    }
+
+    this._fallbackDownload(dataUrl, safeName);
+  }
+
+  _fallbackDownload(dataUrl, safeName) {
     const link = document.createElement('a');
     link.href = dataUrl;
     link.download = safeName;
+    link.target = '_blank';
     link.style.display = 'none';
     document.body.appendChild(link);
     link.click();
@@ -211,7 +251,7 @@ export class PounceCam {
       if (link.parentNode) {
         link.parentNode.removeChild(link);
       }
-    }, 100);
+    }, 120);
   }
 
   _storeToDb(record) {

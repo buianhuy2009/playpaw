@@ -24,6 +24,7 @@ export class SoundSynthesizer {
     this.lastCatchPlayed = null;
     this.lureTriggeredCount = 0;
     this.chimePlayed = false;
+    this.lastScurryTime = 0;
 
     // Lazy initialization of Web Audio API
     if (!this.ctx && typeof window !== 'undefined') {
@@ -309,76 +310,115 @@ export class SoundSynthesizer {
   }
 
   /**
-   * 12-Second Idle Acoustic Lure:
-   * Research-calibrated dual high-pip (9,800 Hz & 11,500 Hz) plus a rustle scamper transient
-   * to immediately snap distracted feline attention back onto the screen.
+   * Helper to construct a StereoPannerNode for directional feline audio.
+   * @private
    */
-  triggerAcousticLure() {
+  _getPanner(panX = 0) {
+    if (!this.ctx) return null;
+    if (typeof this.ctx.createStereoPanner === 'function') {
+      try {
+        const panner = this.ctx.createStereoPanner();
+        const clamped = Math.max(-1, Math.min(1, panX));
+        if (panner.pan && panner.pan.setValueAtTime) {
+          panner.pan.setValueAtTime(clamped, this.ctx.currentTime || 0);
+        } else if (panner.pan) {
+          panner.pan.value = clamped;
+        }
+        return panner;
+      } catch (e) {}
+    }
+    return null;
+  }
+
+  /**
+   * Plays realistic claw scamper / rustle sound as prey moves across the floor.
+   * Stereo panned left-to-right to trigger feline directional pinnae rotation.
+   * @param {string} preyType
+   * @param {number} [panX=0] - Normalized [-1.0, 1.0] screen position
+   */
+  playPreyScurry(preyType, panX = 0) {
+    if (this.isMuted || !this.ctx) return;
+    const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+    if (now - this.lastScurryTime < 240) return; // Prevent audio clipping
+    this.lastScurryTime = now;
+
+    const t = this.ctx.currentTime || 0;
+    const panner = this._getPanner(panX);
+    let dest = this.ctx.destination;
+    if (panner && dest) {
+      try { panner.connect(dest); dest = panner; } catch (e) {}
+    }
+
+    if (preyType === 'mouse') {
+      this._playCrinkleScurry(t, dest, 0.08);
+    } else if (preyType === 'bug' || preyType === 'bee') {
+      this._playBugClick(t, dest);
+    } else if (preyType === 'koi') {
+      this._playWaterSplash(t, dest);
+    } else {
+      this._playCrinkleScurry(t, dest, 0.05);
+    }
+  }
+
+  /**
+   * 12-Second Idle Acoustic Lure:
+   * Multi-phase biological lure designed to break feline disinterest:
+   * 1. Vigorous dry leaves / cardboard claw scratching rustle (0-150ms)
+   * 2. Natural FM rodent distress chitter with vibrato (6.2 kHz -> 10.5 kHz -> 7.4 kHz)
+   * 3. Directional scampering footsteps across the stereo speakers
+   */
+  triggerAcousticLure(panX = 0) {
     if (this.isMuted) return;
     this.lureTriggeredCount++;
 
-    if (this.ctx && this.ctx.createOscillator) {
-      const t = this.ctx.currentTime || 0;
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime || 0;
+    const panner = this._getPanner(panX);
+    let dest = this.ctx.destination;
+    if (panner && dest) {
+      try { panner.connect(dest); dest = panner; } catch (e) {}
+    }
 
-      // Pip 1: 9,800 Hz chirp
-      const osc1 = this.ctx.createOscillator();
-      const gain1 = this.ctx.createGain ? this.ctx.createGain() : null;
+    // Phase 1: High-transient claw scratching on wood/cardboard (immediately draws ears)
+    this._playCrinkleScurry(t, dest, 0.16);
 
-      if (osc1.frequency && osc1.frequency.setValueAtTime) {
-        osc1.type = 'sine';
-        osc1.frequency.setValueAtTime(9800, t);
-        if (osc1.frequency.linearRampToValueAtTime) {
-          osc1.frequency.linearRampToValueAtTime(11500, t + 0.035);
-          osc1.frequency.linearRampToValueAtTime(9200, t + 0.065);
+    // Phase 2: Natural FM Rodent Distress Squeak with Organic Vibrato
+    if (this.ctx.createOscillator) {
+      try {
+        const osc1 = this.ctx.createOscillator();
+        const gain1 = this.ctx.createGain ? this.ctx.createGain() : null;
+
+        if (osc1.frequency && osc1.frequency.setValueAtTime) {
+          osc1.type = 'sine';
+          osc1.frequency.setValueAtTime(6200, t + 0.04);
+          if (osc1.frequency.linearRampToValueAtTime) {
+            osc1.frequency.linearRampToValueAtTime(10500, t + 0.11);
+            osc1.frequency.linearRampToValueAtTime(7400, t + 0.22);
+          }
         }
-      }
 
-      if (gain1 && gain1.gain && gain1.gain.setValueAtTime) {
-        gain1.gain.setValueAtTime(0.65 * this.volume, t);
-        if (gain1.gain.linearRampToValueAtTime) {
-          gain1.gain.linearRampToValueAtTime(0.001, t + 0.07);
+        if (gain1 && gain1.gain && gain1.gain.setValueAtTime) {
+          gain1.gain.setValueAtTime(0.01, t + 0.04);
+          if (gain1.gain.linearRampToValueAtTime) {
+            gain1.gain.linearRampToValueAtTime(0.75 * this.volume, t + 0.08);
+            gain1.gain.linearRampToValueAtTime(0.001, t + 0.24);
+          }
+          osc1.connect(gain1);
+          if (dest) gain1.connect(dest);
+        } else if (dest) {
+          osc1.connect(dest);
         }
-        osc1.connect(gain1);
-        if (this.ctx.destination) gain1.connect(this.ctx.destination);
-      } else if (this.ctx.destination) {
-        osc1.connect(this.ctx.destination);
-      }
 
-      osc1.start(t);
-      osc1.stop(t + 0.07);
+        osc1.start(t + 0.04);
+        osc1.stop(t + 0.25);
+      } catch (e) {}
 
-      // Pip 2: Follow-up 11,200 Hz pip at +0.09s
+      // Phase 3: Secondary quick scamper rustle as prey scurries into cover
       setTimeout(() => {
         if (!this.ctx || this.isMuted) return;
         const t2 = this.ctx.currentTime || 0;
-        const osc2 = this.ctx.createOscillator();
-        const gain2 = this.ctx.createGain ? this.ctx.createGain() : null;
-
-        if (osc2.frequency && osc2.frequency.setValueAtTime) {
-          osc2.type = 'sine';
-          osc2.frequency.setValueAtTime(11200, t2);
-          if (osc2.frequency.linearRampToValueAtTime) {
-            osc2.frequency.linearRampToValueAtTime(12800, t2 + 0.03);
-          }
-        }
-
-        if (gain2 && gain2.gain && gain2.gain.setValueAtTime) {
-          gain2.gain.setValueAtTime(0.55 * this.volume, t2);
-          if (gain2.gain.linearRampToValueAtTime) {
-            gain2.gain.linearRampToValueAtTime(0.001, t2 + 0.06);
-          }
-          osc2.connect(gain2);
-          if (this.ctx.destination) gain2.connect(this.ctx.destination);
-        } else if (this.ctx.destination) {
-          osc2.connect(this.ctx.destination);
-        }
-
-        osc2.start(t2);
-        osc2.stop(t2 + 0.06);
-
-        // Rustle scurry immediately after chirp
-        this._playCrinkleScurry(t2 + 0.02, this.ctx.destination, 0.1);
-      }, 90);
+        this._playCrinkleScurry(t2, dest, 0.12);
+      }, 260);
     }
   }
 

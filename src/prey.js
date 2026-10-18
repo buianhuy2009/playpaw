@@ -316,6 +316,12 @@ export class PreyAgent {
 
     ctx.save();
 
+    // 3D tactile elevation drop shadow for high contrast on light floors
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+    ctx.shadowBlur = 10;
+    ctx.shadowOffsetX = 3;
+    ctx.shadowOffsetY = 5;
+
     // Apply micro-jitter if in FREEZE_TREMOR
     const drawX = this.x + (this.state === 'FREEZE_TREMOR' ? this.jitter : 0);
     const drawY = this.y + (this.state === 'FREEZE_TREMOR' ? this.jitter : 0);

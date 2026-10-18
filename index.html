@@ -49,22 +49,22 @@
     /* THE ONLY VISIBLE CONTROL DURING ACTUAL GAMEPLAY */
     #exitLockWidget {
       position: absolute;
-      bottom: 20px;
-      right: 20px;
-      width: 58px;
-      height: 58px;
+      bottom: 24px;
+      right: 24px;
+      width: 64px;
+      height: 64px;
       z-index: 10;
       cursor: pointer;
       opacity: 0.35;
-      transition: opacity 0.25s ease, transform 0.2s ease;
+      transition: opacity 0.2s ease, transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
       touch-action: none;
-      background: rgba(10, 19, 31, 0.4);
+      background: transparent;
       border-radius: 50%;
     }
 
     #exitLockWidget:active, #exitLockWidget.holding {
-      opacity: 0.95;
-      transform: scale(1.05);
+      opacity: 1.0;
+      transform: scale(1.65);
     }
 
     /* ========================================================= */
@@ -576,9 +576,9 @@
   <!-- Game Canvas Backing Store -->
   <canvas id="gameCanvas"></canvas>
 
-  <!-- 8-Second Clockwise Annulus Exit Lock Widget -->
+  <!-- 5-Second Clockwise Annulus Exit Lock Widget -->
   <!-- The ONLY button in the actual game -->
-  <div id="exitLockWidget" title="Hold 8 seconds to return to menu"></div>
+  <div id="exitLockWidget" title="Hold 5 seconds to return to menu"></div>
 
   <!-- FULLSCREEN MAIN MENU -->
   <div id="mainMenuScreen" class="main-menu-screen">
@@ -769,7 +769,7 @@
           <!-- Start Button -->
           <button id="startGameBtn" class="start-btn">Start Game</button>
           <p class="play-notice">
-            The only button in the game is the X in the corner. Hold it for 8 seconds to return here.
+            The only button in the game is the X in the corner. Hold it for 5 seconds to return here.
           </p>
         </div>
       </section>
@@ -1002,13 +1002,32 @@
         engine.applySafeMargins(prey, dt, true);
       }
 
-      // Check 12-second acoustic idle lure
+      // Check 12-second acoustic idle lure with biological rustle & squeak
       if (engine.idleTime >= 12.0) {
-        audio.triggerAcousticLure();
+        const firstPrey = preyManager.preyList && preyManager.preyList[0];
+        const canvasW = engine.width || 1024;
+        const panX = firstPrey ? (((firstPrey.x / canvasW) * 2) - 1) : 0;
+        audio.triggerAcousticLure(panX);
         engine.resetIdleTimer();
         for (const prey of preyManager.preyList) {
           if (prey.state !== 'CAUGHT_RESPAWN') {
-            prey.changeState('DART_SPRINT', 0.8);
+            prey.changeState('DART_SPRINT', 0.9);
+          }
+        }
+        // Snap curious-look reaction photo when cat looks down at screen
+        if (cameraEnabled && camera.isEnabled) {
+          camera.captureSnapshot('curious-look').then(() => updatePhotoCount()).catch(() => {});
+        }
+      }
+
+      // Real-time organic audio: claw scratching & scampering footsteps panned across stereo speakers
+      if (preyManager.preyList && preyManager.preyList.length > 0) {
+        for (const prey of preyManager.preyList) {
+          if (prey.state === 'DART_SPRINT' || (prey.state === 'EDGE_SKITTER' && Math.random() < 0.12)) {
+            const canvasW = engine.width || 1024;
+            const panX = ((prey.x / canvasW) * 2) - 1;
+            audio.playPreyScurry(prey.type, panX);
+            break;
           }
         }
       }
@@ -1117,8 +1136,8 @@
     });
 
     // START GAME ACTION
-    elements.startGameBtn.addEventListener('click', async () => {
-      await audio.unlock();
+    elements.startGameBtn.addEventListener('click', () => {
+      audio.unlock().catch(() => {});
 
       if (cameraEnabled && !camera.isEnabled) {
         camera.init().catch(() => {});

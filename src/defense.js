@@ -12,10 +12,11 @@
  *   * Completion ends session gracefully
  */
 
-export const EXIT_LOCK_DURATION_MS = 8000;
+export const EXIT_LOCK_DURATION_MS = 5000;
 
 export class DefenseShield {
-  constructor() {
+  constructor(durationMs = EXIT_LOCK_DURATION_MS) {
+    this.durationMs = durationMs;
     this.beforeUnloadEnabled = false;
     this.exitStartTime = null;
     this.exitProgress = 0.0;
@@ -126,7 +127,8 @@ export class DefenseShield {
     }
 
     const elapsed = Math.max(0, currentTimeMs - this.exitStartTime);
-    this.exitProgress = Math.min(1.0, elapsed / EXIT_LOCK_DURATION_MS);
+    const duration = this.durationMs || EXIT_LOCK_DURATION_MS;
+    this.exitProgress = Math.min(1.0, elapsed / duration);
 
     if (this.exitProgress >= 1.0) {
       if (typeof this.onExitComplete === 'function') {
@@ -174,6 +176,7 @@ export class DefenseShield {
 
     const onPointerDown = (e) => {
       if (e.preventDefault) e.preventDefault();
+      element.classList.add('holding');
       const startTime = performance.now();
       this.startExitHold(startTime);
 
@@ -190,6 +193,7 @@ export class DefenseShield {
 
     const onPointerEnd = (e) => {
       if (e && e.preventDefault) e.preventDefault();
+      element.classList.remove('holding');
       if (animFrame) cancelAnimationFrame(animFrame);
       this.cancelExitHold();
       this._renderSvgAnnulus(element, 0.0);
@@ -206,23 +210,25 @@ export class DefenseShield {
 
   _renderSvgAnnulus(element, progress) {
     if (!element) return;
-    const size = 56;
-    const r = 22;
+    const isHolding = progress > 0;
+    const size = 64;
+    const r = 25;
     const circ = 2 * Math.PI * r;
     const strokeDash = circ * progress;
     const strokeOffset = circ - strokeDash;
 
     // Render SVG inside container
     element.innerHTML = `
-      <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="transform: rotate(-90deg); display: block;">
+      <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="transform: rotate(-90deg); display: block; overflow: visible;">
         <!-- Background Track -->
-        <circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="4"/>
+        <circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="${isHolding ? 'rgba(10, 19, 31, 0.85)' : 'rgba(10, 19, 31, 0.35)'}" stroke="rgba(255,255,255,0.18)" stroke-width="5"/>
         <!-- Clockwise Filling Active Arc -->
-        <circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="#FFD600" stroke-width="4"
-          stroke-dasharray="${circ}" stroke-dashoffset="${strokeOffset}" stroke-linecap="round"/>
+        <circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="#FFD600" stroke-width="5"
+          stroke-dasharray="${circ}" stroke-dashoffset="${strokeOffset}" stroke-linecap="round"
+          style="filter: ${isHolding ? 'drop-shadow(0 0 6px #FFD600)' : 'none'};"/>
       </svg>
-      <!-- Ultra-faint ✕ symbol centered -->
-      <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; opacity: ${0.15 + progress * 0.7}; pointer-events: none; color: #FFF; font-size: 18px; font-weight: bold;">✕</div>
+      <!-- Centered ✕ symbol -->
+      <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; opacity: ${isHolding ? 1.0 : 0.25}; pointer-events: none; color: ${isHolding ? '#FFD600' : '#FFFFFF'}; font-size: ${isHolding ? 24 : 20}px; font-weight: 800; transition: transform 0.2s ease;">✕</div>
     `;
   }
 
