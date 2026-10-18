@@ -431,9 +431,27 @@ timeline
   * **Result: 0 errors, 0 warnings.**
 
 
-
-
-
+#### 4. Feline Auditory & Physical Demonstration Overhaul (Post-Video Analysis)
+* **Real-World Cat Test Evaluation (`~/Downloads/IMG_0309.MOV`):**
+  * Evaluated 30-second live test video of cat perched above iPad on a light apartment floor.
+  * Identified 4 core friction points:
+    1. Lack of continuous auditory prey activity: cats tune into 2 kHz - 60 kHz; synthetic sine beeps caused immediate disinterest after 2 seconds.
+    2. Zero background contrast: iPad Oak Wood Floor theme blended seamlessly into the real apartment floor, removing visual separation from an elevated angle.
+    3. iPad Safari camera decoding stall: hidden `<video>` element stopped frame rendering in iOS WebKit, preventing saved pounce frames.
+    4. Exit lock friction: 8 seconds proved too long for human hand ergonomics, and widget lacked visual holding feedback.
+* **Biological Sound Architecture Overhaul (`src/audio.js`):**
+  * Implemented procedural organic claw-on-wood / rustling scamper sound (`playPreyScurry`) whenever prey darts or skitters.
+  * Implemented dynamic stereo spatial panning (`StereoPannerNode`) mapped to prey x-coordinate so cats can locate prey via interaural time differences.
+  * Overhauled 12s acoustic lure into a 3-phase biological sequence: (A) crisp claw scratch & leaf rustle, (B) natural frequency-modulated rodent distress chitter (4.5 kHz – 11 kHz with vibrato), (C) directional scamper footsteps.
+* **Visual Contrast & Elevation (`src/prey.js`):**
+  * Added 3D tactile elevation drop shadow (`shadowColor = 'rgba(0,0,0,0.45)'`, blur, offset) so all prey distinctly pop off light wood and dark floors.
+* **iPad Safari Camera & Native Photos Integration (`src/camera.js`):**
+  * Fixed iOS WebKit video decoding freeze by attaching `<video>` offscreen to DOM with `playsinline`, `muted`, `autoplay`, and non-zero dimensions.
+  * Added iOS Web Share API integration (`navigator.share({ files: [file] })`) to save high-res pounce photos directly to Apple Photos.
+  * Added `curious-look` snapshot trigger on the 12s acoustic lure to capture the cat's curious reaction even prior to swatting.
+* **5-Second Enlarged Exit Lock (`src/defense.js`, `index.html`):**
+  * Reduced exit hold duration from 8s to 5s.
+  * Added active `.holding` scale animation (`scale(1.65)`), golden glow effect, and enlarged touch target.
 
 
 
