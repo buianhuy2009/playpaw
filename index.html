@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="description" content="PawPlay - Biological-calibrated interactive web application for cats with Browser Tab Defense Shield and Pounce-Cam.">
+  <meta name="theme-color" content="#0A2239">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="PawPlay">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐾</text></svg>">
+  <title>PawPlay — The Cat Toy</title>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #0A2239;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      overscroll-behavior: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    #gameCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+
+    /* HUD Bar */
+    #hud {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      right: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 5;
+      pointer-events: none;
+    }
+
+    .hud-chip {
+      background: rgba(16, 18, 26, 0.75);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      color: #FFD600;
+      padding: 8px 16px;
+      border-radius: 24px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid rgba(255, 214, 0, 0.25);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    }
+
+    .hud-btn {
+      pointer-events: auto;
+      cursor: pointer;
+      background: rgba(16, 18, 26, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #FFF;
+      padding: 8px 14px;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .hud-btn:active {
+      transform: scale(0.95);
+      background: rgba(30, 35, 50, 0.9);
+    }
+
+    /* 8-Second Annulus Exit Lock (Bottom Right Corner) */
+    #exitLockWidget {
+      position: absolute;
+      bottom: 16px;
+      right: 16px;
+      width: 56px;
+      height: 56px;
+      z-index: 8;
+      cursor: pointer;
+      opacity: 0.2;
+      transition: opacity 0.3s ease;
+      touch-action: none;
+    }
+
+    #exitLockWidget:active, #exitLockWidget.holding {
+      opacity: 0.95;
+    }
+
+    /* Modals & Overlays */
+    .modal-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(10, 15, 25, 0.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 24px;
+      z-index: 20;
+      color: #FFF;
+      text-align: center;
+    }
+
+    .modal-card {
+      background: #151A24;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 24px;
+      padding: 32px 24px;
+      max-width: 480px;
+      width: 100%;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    h1, h2 {
+      color: #FFD600;
+      margin-bottom: 8px;
+    }
+
+    p.subtitle {
+      color: #A0AEC0;
+      font-size: 0.95rem;
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+
+    /* Form Controls */
+    .deck-section {
+      width: 100%;
+      margin-bottom: 20px;
+      text-align: left;
+    }
+
+    .deck-label {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #00E5FF;
+      margin-bottom: 8px;
+      font-weight: 700;
+    }
+
+    .segmented-control {
+      display: flex;
+      gap: 6px;
+      background: #0B0E14;
+      padding: 4px;
+      border-radius: 12px;
+      width: 100%;
+    }
+
+    .seg-btn {
+      flex: 1;
+      padding: 8px 10px;
+      background: transparent;
+      border: none;
+      color: #CBD5E0;
+      font-size: 0.85rem;
+      font-weight: 600;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .seg-btn.active {
+      background: #FFD600;
+      color: #0A2239;
+      box-shadow: 0 2px 8px rgba(255, 214, 0, 0.3);
+    }
+
+    .action-btn {
+      background: #00E5FF;
+      color: #0A2239;
+      font-size: 1.15rem;
+      font-weight: 800;
+      padding: 14px 32px;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      box-shadow: 0 4px 20px rgba(0, 229, 255, 0.4);
+      transition: transform 0.15s, background-color 0.2s;
+      width: 100%;
+      margin-top: 12px;
+    }
+
+    .action-btn:active {
+      transform: scale(0.97);
+    }
+
+    .secondary-btn {
+      background: transparent;
+      color: #CBD5E0;
+      font-size: 0.9rem;
+      font-weight: 600;
+      padding: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 30px;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 8px;
+    }
+
+    /* Onboarding Carousel Specifics */
+    .onboarding-icon {
+      font-size: 3.5rem;
+      margin-bottom: 16px;
+      animation: floatIcon 3s ease-in-out infinite;
+    }
+
+    @keyframes floatIcon {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+
+    .carousel-nav {
+      display: flex;
+      width: 100%;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    /* Photo Gallery Grid */
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 12px;
+      width: 100%;
+      max-height: 320px;
+      overflow-y: auto;
+      margin-bottom: 16px;
+      padding: 4px;
+    }
+
+    .gallery-item {
+      position: relative;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      aspect-ratio: 4/3;
+      background: #000;
+    }
+
+    .gallery-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .gallery-item button {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      background: rgba(255, 0, 0, 0.8);
+      border: none;
+      color: #FFF;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Game Canvas Backing Store -->
+  <canvas id="gameCanvas"></canvas>
+
+  <!-- Heads Up Display -->
+  <div id="hud">
+    <div id="scoreBadge" class="hud-chip">🐾 <span id="scoreText">0</span></div>
+    <div id="timerChip" class="hud-chip">⏳ <span id="timerText">∞</span></div>
+    <div style="display: flex; gap: 8px;">
+      <button id="camToggleBtn" class="hud-btn" title="Toggle Pounce-Cam">📸 Cam</button>
+      <button id="settingsBtn" class="hud-btn" title="Settings">⚙️ Menu</button>
+    </div>
+  </div>
+
+  <!-- 8-Second Clockwise Annulus Exit Lock Widget -->
+  <div id="exitLockWidget" title="Hold 8s to Exit"></div>
+
+  <!-- 1. Fullscreen First-Time Onboarding Walkthrough Carousel -->
+  <div id="onboardingModal" class="modal-overlay" style="display: none;">
+    <div class="modal-card">
+      <div id="onboardingIcon" class="onboarding-icon">🐾</div>
+      <div id="onboardingStep" style="font-size: 0.8rem; color: #00E5FF; font-weight: 700; text-transform: uppercase; margin-bottom: 6px;">Step 1 of 5</div>
+      <h2 id="onboardingTitle">Cat-Proofing & Stability</h2>
+      <p id="onboardingDesc" class="subtitle">Place your device on a rug or silicone mat so active pounces do not slide the tablet across the floor.</p>
+
+      <div class="carousel-nav">
+        <button id="onboardingPrevBtn" class="secondary-btn" style="flex: 1; margin-top: 0; visibility: hidden;">← Back</button>
+        <button id="onboardingNextBtn" class="action-btn" style="flex: 2; margin-top: 0;">Next →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. Customization Deck Modal -->
+  <div id="settingsModal" class="modal-overlay" style="display: none;">
+    <div class="modal-card" style="max-height: 90vh; overflow-y: auto;">
+      <h2>🐾 Settings Deck</h2>
+      <p class="subtitle" style="margin-bottom: 16px;">Calibrate visual stimuli, speed, and session limits.</p>
+
+      <!-- Prey Selector -->
+      <div class="deck-section">
+        <div class="deck-label">Target Prey</div>
+        <div class="segmented-control" id="preySelector">
+          <button class="seg-btn active" data-val="mouse">🐭 Mouse</button>
+          <button class="seg-btn" data-val="bug">🪲 Roach</button>
+          <button class="seg-btn" data-val="laser">🟡 Laser</button>
+          <button class="seg-btn" data-val="koi">🐟 Koi</button>
+          <button class="seg-btn" data-val="bee">🐝 Bee</button>
+        </div>
+      </div>
+
+      <!-- Prey Count -->
+      <div class="deck-section">
+        <div class="deck-label">Concurrent Prey Count</div>
+        <div class="segmented-control" id="countSelector">
+          <button class="seg-btn active" data-val="1">1</button>
+          <button class="seg-btn" data-val="2">2</button>
+          <button class="seg-btn" data-val="3">3</button>
+          <button class="seg-btn" data-val="4">4 (Multi-Cat)</button>
+        </div>
+      </div>
+
+      <!-- Speed Mode -->
+      <div class="deck-section">
+        <div class="deck-label">Predatory Speed</div>
+        <div class="segmented-control" id="speedSelector">
+          <button class="seg-btn" data-val="kitten">Kitten</button>
+          <button class="seg-btn active" data-val="hunter">Hunter</button>
+          <button class="seg-btn" data-val="apex">Apex</button>
+          <button class="seg-btn" data-val="ludicrous">Ludicrous</button>
+        </div>
+      </div>
+
+      <!-- Theme Selector -->
+      <div class="deck-section">
+        <div class="deck-label">Contrast Theme</div>
+        <div class="segmented-control" id="themeSelector">
+          <button class="seg-btn" data-val="daylight">Daylight</button>
+          <button class="seg-btn" data-val="night">Night Stalker</button>
+          <button class="seg-btn active" data-val="pond">Koi Pond</button>
+        </div>
+      </div>
+
+      <!-- Session Timer -->
+      <div class="deck-section">
+        <div class="deck-label">Session Duration</div>
+        <div class="segmented-control" id="timerSelector">
+          <button class="seg-btn" data-val="1m">1 Min</button>
+          <button class="seg-btn" data-val="3m">3 Min</button>
+          <button class="seg-btn" data-val="5m">5 Min</button>
+          <button class="seg-btn active" data-val="unlimited">Unlimited</button>
+        </div>
+      </div>
+
+      <!-- Camera Trigger -->
+      <div class="deck-section">
+        <div class="deck-label">Pounce-Cam Snapshot Trigger</div>
+        <div class="segmented-control" id="cameraSelector">
+          <button class="seg-btn active" data-val="catch">On Catch</button>
+          <button class="seg-btn" data-val="near-miss">Near-Miss</button>
+          <button class="seg-btn" data-val="all">Every Swat</button>
+          <button class="seg-btn" data-val="disabled">Disabled</button>
+        </div>
+      </div>
+
+      <button id="startGameBtn" class="action-btn">Resume Hunt 🐾</button>
+      <div style="display: flex; gap: 8px; width: 100%;">
+        <button id="openGalleryBtn" class="secondary-btn">📸 Cat Cam Gallery</button>
+        <button id="openGuideBtn" class="secondary-btn">❓ Shield Guide</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Anti-Frustration "Complete the Hunt" Treat Reward Modal -->
+  <div id="treatModal" class="modal-overlay" style="display: none;">
+    <div class="modal-card">
+      <div style="font-size: 3.5rem; margin-bottom: 12px;">🍖</div>
+      <h2>Complete the Hunt!</h2>
+      <p class="subtitle" style="color: #FFD600; font-weight: 700; margin-bottom: 8px;">Pounces Caught: <span id="treatScore">0</span></p>
+      <p class="subtitle">
+        Toss your cat a physical treat, kibble, or crinkle toy right now!
+        Rewarding their tactile predatory instinct prevents psychological frustration.
+      </p>
+      <button id="treatRestartBtn" class="action-btn">Play Again 🐾</button>
+      <button id="treatMenuBtn" class="secondary-btn">Open Settings ⚙️</button>
+    </div>
+  </div>
+
+  <!-- 4. Photo Gallery Modal -->
+  <div id="galleryModal" class="modal-overlay" style="display: none;">
+    <div class="modal-card">
+      <h2>📸 Reaction Vault</h2>
+      <p class="subtitle" style="margin-bottom: 12px;">Captured feline pounces saved locally to your device.</p>
+      <div id="galleryGrid" class="gallery-grid">
+        <p style="color: #718096; grid-column: 1/-1; text-align: center; padding: 24px;">No reaction snapshots captured yet. Start playing with camera enabled!</p>
+      </div>
+      <button id="closeGalleryBtn" class="action-btn">Close Vault</button>
+    </div>
+  </div>
+
+  <!-- 5. Tab Defense & Screen Pinning Guide Modal -->
+  <div id="guideModal" class="modal-overlay" style="display: none;">
+    <div class="modal-card">
+      <h2>🛡️ Guided Access Setup</h2>
+      <p class="subtitle">Completely lock browser tabs and OS gestures.</p>
+      <div style="text-align: left; font-size: 0.9rem; color: #CBD5E0; line-height: 1.6; margin-bottom: 20px;">
+        <p><b>🍏 iOS (iPad / iPhone):</b><br>1. Open Settings → Accessibility → Guided Access (turn ON).<br>2. Return to PawPlay and triple-click the Side/Home button.<br>3. Tap Start to disable swipe-to-exit gestures.</p>
+        <br>
+        <p><b>🤖 Android:</b><br>1. Open Settings → Security → App Pinning.<br>2. Open Overview screen and tap the PawPlay app icon → Pin.</p>
+      </div>
+      <button id="closeGuideBtn" class="action-btn">Got It!</button>
+    </div>
+  </div>
+
+  <!-- Main ES Module Application Entrypoint -->
+  <script type="module">
+    import Engine from './src/engine.js';
+    import { PreyManager } from './src/prey.js';
+    import InputController from './src/input.js';
+    import DefenseShield from './src/defense.js';
+    import SoundSynthesizer from './src/audio.js';
+    import AppState from './src/state.js';
+    import UIController from './src/ui.js';
+    import PounceCam from './src/camera.js';
+
+    // 1. Initialize State Store
+    const state = new AppState();
+
+    // 2. Initialize DOM Element References
+    const elements = {
+      canvas: document.getElementById('gameCanvas'),
+      scoreText: document.getElementById('scoreText'),
+      timerText: document.getElementById('timerText'),
+      camToggleBtn: document.getElementById('camToggleBtn'),
+      settingsBtn: document.getElementById('settingsBtn'),
+      exitLockWidget: document.getElementById('exitLockWidget'),
+      onboardingModal: document.getElementById('onboardingModal'),
+      onboardingIcon: document.getElementById('onboardingIcon'),
+      onboardingStep: document.getElementById('onboardingStep'),
+      onboardingTitle: document.getElementById('onboardingTitle'),
+      onboardingDesc: document.getElementById('onboardingDesc'),
+      onboardingPrevBtn: document.getElementById('onboardingPrevBtn'),
+      onboardingNextBtn: document.getElementById('onboardingNextBtn'),
+      settingsModal: document.getElementById('settingsModal'),
+      startGameBtn: document.getElementById('startGameBtn'),
+      treatModal: document.getElementById('treatModal'),
+      treatScore: document.getElementById('treatScore'),
+      treatRestartBtn: document.getElementById('treatRestartBtn'),
+      treatMenuBtn: document.getElementById('treatMenuBtn'),
+      galleryModal: document.getElementById('galleryModal'),
+      galleryGrid: document.getElementById('galleryGrid'),
+      closeGalleryBtn: document.getElementById('closeGalleryBtn'),
+      openGalleryBtn: document.getElementById('openGalleryBtn'),
+      guideModal: document.getElementById('guideModal'),
+      openGuideBtn: document.getElementById('openGuideBtn'),
+      closeGuideBtn: document.getElementById('closeGuideBtn'),
+      timerDisplay: document.getElementById('timerText')
+    };
+
+    // 3. Initialize Core Subsystems
+    const engine = new Engine(elements.canvas);
+    const preyManager = new PreyManager();
+    const input = new InputController();
+    const defense = new DefenseShield();
+    const audio = new SoundSynthesizer();
+    const camera = new PounceCam();
+    const ui = new UIController(state, elements);
+
+    // Initial Subsystem Configuration from State
+    const initialConfig = state.get();
+    engine.setTheme(initialConfig.theme);
+    preyManager.init(initialConfig.count, initialConfig.prey, initialConfig.speed, initialConfig.size);
+    camera.setTriggerMode(initialConfig.cameraTrigger);
+    audio.setVolume(initialConfig.volume);
+
+    // 4. Bind Input Controller to Raycasting & Ripples
+    input.init(
+      elements.canvas,
+      // On Pounce Swat: (x1, y1, x2, y2, pointerId)
+      (x1, y1, x2, y2) => {
+        engine.resetIdleTimer();
+        const hits = preyManager.checkRaycastHit(x1, y1, x2, y2);
+        if (hits.length > 0) {
+          hits.forEach((prey) => {
+            // Trigger Caught State
+            prey.changeState('CAUGHT_RESPAWN', 0.88);
+            engine.score++;
+            elements.scoreText.textContent = engine.score;
+
+            // Visual Burst
+            engine.spawnBurst(prey.x, prey.y);
+
+            // Audio & Haptic Feedback
+            audio.playPreyCatch(prey.type);
+
+            // Camera Reaction Snapshot
+            camera.captureSnapshot('catch');
+          });
+        } else {
+          // Near-miss check (within 100px)
+          for (const p of preyManager.preyList) {
+            const d = Math.hypot(p.x - x2, p.y - y2);
+            if (d < 100 && !p.isRespawning) {
+              camera.captureSnapshot('near-miss');
+              break;
+            }
+          }
+        }
+      },
+      // On Touch Down: Trigger Interactive Water Ripple
+      (x, y) => {
+        engine.addRipple(x, y, 1.0);
+      }
+    );
+
+    // 5. Bind Browser Tab Defense Shield
+    defense.enableBeforeUnload(() => engine.isPlaying);
+    defense.initVisibilityHandler(
+      // On Tab Hidden
+      () => {
+        engine.isPaused = true;
+        audio.mute(true);
+      },
+      // On Tab Visible
+      () => {
+        audio.mute(state.get('volume') === 0);
+        ui.openSettings();
+      }
+    );
+
+    // Bind 8-Second Clockwise Annulus Exit Lock
+    defense.initAnnulusLock(elements.exitLockWidget, () => {
+      engine.stop();
+      ui.releaseWakeLock();
+      ui.showTreatModal({ score: engine.score });
+    });
+
+    // 6. Connect 120Hz Delta-Time Render Loop
+    engine.start((dt) => {
+      const safeArea = engine.getDimensions().safeArea;
+
+      // Update prey physics
+      preyManager.update(dt, safeArea);
+
+      // Enforce safe margins on all prey
+      for (const prey of preyManager.preyList) {
+        engine.applySafeMargins(prey, dt);
+      }
+
+      // Check 12-second idle acoustic lure
+      if (engine.idleTime >= 12.0) {
+        audio.triggerAcousticLure();
+        engine.resetIdleTimer();
+        // Lure chirp triggers dart sprint escape
+        for (const prey of preyManager.preyList) {
+          if (prey.state !== 'CAUGHT_RESPAWN') {
+            prey.changeState('DART_SPRINT', 0.8);
+          }
+        }
+      }
+
+      // Session Timer Tick
+      if (ui.tickSession(dt)) {
+        // Session expired!
+        engine.stop();
+        audio.playTreatChime();
+        ui.showTreatModal({ score: engine.score });
+      }
+
+      // Draw Prey Sprites on Top of Theme Layer
+      preyManager.draw(engine.ctx);
+    });
+
+    // 7. UI Wire-Up: Onboarding & Settings
+    if (!state.isOnboarded()) {
+      ui.showOnboarding();
+    }
+
+    elements.onboardingNextBtn.addEventListener('click', () => {
+      if (ui.currentSlide === ui.totalSlides - 1) {
+        ui.finishOnboarding();
+        audio.unlock();
+      } else {
+        ui.nextSlide();
+      }
+    });
+
+    elements.onboardingPrevBtn.addEventListener('click', () => {
+      ui.prevSlide();
+    });
+
+    elements.settingsBtn.addEventListener('click', () => {
+      ui.openSettings();
+    });
+
+    elements.startGameBtn.addEventListener('click', () => {
+      audio.unlock();
+      ui.closeSettings();
+      ui.startSession(state.get('timerMode'));
+      engine.start();
+    });
+
+    // Segmented Controls Sync
+    function bindSegmentedControl(containerId, stateKey, onChange) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+      const btns = container.querySelectorAll('.seg-btn');
+      btns.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          btns.forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          const val = btn.getAttribute('data-val');
+          state.update({ [stateKey]: val });
+          if (onChange) onChange(val);
+        });
+      });
+    }
+
+    bindSegmentedControl('preySelector', 'prey', (val) => preyManager.setPreyType(val));
+    bindSegmentedControl('countSelector', 'count', (val) => preyManager.setCount(Number(val)));
+    bindSegmentedControl('speedSelector', 'speed', (val) => preyManager.setSpeedMode(val));
+    bindSegmentedControl('themeSelector', 'theme', (val) => engine.setTheme(val));
+    bindSegmentedControl('timerSelector', 'timerMode', (val) => ui.startSession(val));
+    bindSegmentedControl('cameraSelector', 'cameraTrigger', (val) => {
+      camera.setTriggerMode(val);
+      if (val !== 'disabled') camera.init().catch(() => {});
+    });
+
+    // Camera Toggle Button in HUD
+    elements.camToggleBtn.addEventListener('click', async () => {
+      audio.unlock();
+      if (!camera.isEnabled) {
+        try {
+          await camera.init();
+          camera.setTriggerMode('catch');
+          elements.camToggleBtn.style.color = '#00E5FF';
+        } catch (e) {
+          alert('Camera permission denied or camera not available.');
+        }
+      } else {
+        camera.setTriggerMode('disabled');
+        elements.camToggleBtn.style.color = '#FFF';
+      }
+    });
+
+    // Treat Screen Controls
+    elements.treatRestartBtn.addEventListener('click', () => {
+      ui.hideTreatModal();
+      engine.score = 0;
+      elements.scoreText.textContent = '0';
+      ui.startSession(state.get('timerMode'));
+      engine.start();
+    });
+
+    elements.treatMenuBtn.addEventListener('click', () => {
+      ui.hideTreatModal();
+      ui.openSettings();
+    });
+
+    // Photo Gallery Modal
+    elements.openGalleryBtn.addEventListener('click', async () => {
+      ui.closeSettings();
+      elements.galleryModal.style.display = 'flex';
+      const photos = await camera.getPhotos();
+      if (photos.length > 0) {
+        elements.galleryGrid.innerHTML = '';
+        photos.forEach((photo) => {
+          const item = document.createElement('div');
+          item.className = 'gallery-item';
+          item.innerHTML = `
+            <img src="${photo.dataUrl}" alt="Cat reaction">
+            <button title="Delete photo">✕</button>
+          `;
+          item.querySelector('button').addEventListener('click', async () => {
+            await camera.deletePhoto(photo.id);
+            item.remove();
+          });
+          elements.galleryGrid.appendChild(item);
+        });
+      }
+    });
+
+    elements.closeGalleryBtn.addEventListener('click', () => {
+      elements.galleryModal.style.display = 'none';
+      ui.openSettings();
+    });
+
+    // Guide Modal
+    elements.openGuideBtn.addEventListener('click', () => {
+      ui.closeSettings();
+      ui.openGuideModal();
+    });
+
+    elements.closeGuideBtn.addEventListener('click', () => {
+      ui.closeGuideModal();
+      ui.openSettings();
+    });
+
+    // 8. Register Service Worker for Offline PWA Reliability
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
+      });
+    }
+  </script>
+</body>
+</html>

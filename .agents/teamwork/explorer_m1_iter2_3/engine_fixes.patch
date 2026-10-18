@@ -1,0 +1,76 @@
+--- src/engine.js.orig
++++ src/engine.js
+@@ -160,6 +160,8 @@
+     // Bound listeners for event cleanup
+     this.handleResize = this.resize.bind(this);
++    this._onOrientationChange = () => setTimeout(this.handleResize, 100);
++    this.handleOrientation = this._onOrientationChange;
+ 
+     if (this.canvas) {
+       this.init(this.canvas);
+@@ -182,10 +184,15 @@
+     if (typeof window !== 'undefined') {
+-      window.removeEventListener('resize', this.handleResize);
+-      window.addEventListener('resize', this.handleResize);
+-      if (typeof window.addEventListener === 'function') {
+-        window.addEventListener('orientationchange', () => {
+-          setTimeout(this.handleResize, 100);
+-        });
++      if (typeof window.removeEventListener === 'function') {
++        window.removeEventListener('resize', this.handleResize);
++        if (this._onOrientationChange) {
++          window.removeEventListener('orientationchange', this._onOrientationChange);
++        }
++      }
++      if (typeof window.addEventListener === 'function') {
++        window.addEventListener('resize', this.handleResize);
++        if (this._onOrientationChange) {
++          window.addEventListener('orientationchange', this._onOrientationChange);
++        }
+       }
+     }
+     return this;
+@@ -279,6 +286,7 @@
+   start(tickCallback) {
++    if (this.isPlaying) return;
+     if (typeof tickCallback === 'function') {
+       this.onTick = tickCallback;
+     }
+@@ -367,7 +375,7 @@
+     const width = this.width || this.logicalWidth || (this.canvas ? this.canvas.clientWidth : 1024);
+     const height = this.height || this.logicalHeight || (this.canvas ? this.canvas.clientHeight : 768);
+ 
+-    const R = sprite.radius !== undefined ? sprite.radius : 32;
++    const R = Number.isFinite(sprite.radius) ? sprite.radius : 32;
+     const xMin = SAFE_MARGINS.SIDES + R;
+     const xMax = width - SAFE_MARGINS.SIDES - R;
+     const yMin = SAFE_MARGINS.TOP + R;
+@@ -379,10 +387,15 @@
+     const k_damp = MARGIN_CONFIG.DAMPING_RATE;
+     const e = MARGIN_CONFIG.RESTITUTION;
+ 
+-    const clampedDt = Math.min(Math.max(0, dt || 0.016), MAX_DT);
++    const clampedDt = Math.min(Math.max(0, (typeof dt === 'number' && !isNaN(dt)) ? dt : 0.016), MAX_DT);
+ 
++    if (!Number.isFinite(sprite.x)) sprite.x = (xMin + xMax) / 2;
++    if (!Number.isFinite(sprite.y)) sprite.y = (yMin + yMax) / 2;
++    if (!Number.isFinite(sprite.vx)) sprite.vx = 0;
++    if (!Number.isFinite(sprite.vy)) sprite.vy = 0;
++
+     let ax = 0;
+     let ay = 0;
+ 
+@@ -904,7 +917,12 @@
+   destroy() {
+     this.stop();
+     if (typeof window !== 'undefined') {
+-      window.removeEventListener('resize', this.handleResize);
++      if (typeof window.removeEventListener === 'function') {
++        window.removeEventListener('resize', this.handleResize);
++        if (this._onOrientationChange) {
++          window.removeEventListener('orientationchange', this._onOrientationChange);
++        }
++      }
+     }
+     this.particles = [];
+     this.shockwaves = [];

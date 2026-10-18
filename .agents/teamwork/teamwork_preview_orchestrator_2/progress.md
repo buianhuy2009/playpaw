@@ -1,0 +1,45 @@
+# PawPlay Project Progress (Generation 2)
+
+## Current Status
+Last visited: 2026-10-18T10:26:00Z
+- [x] Initialized Gen 2 orchestrator workspace, BRIEFING.md, DISPATCH.md, plan.md, and progress.md
+- [x] Started heartbeat cron (task-32)
+- [x] Milestone 1 Iteration 2 fixes applied to `src/engine.js` & verified:
+  - Event listener guards
+  - Complete NaN / non-finite sanitization and safe-centering in `applySafeMargins` and `getSafeBounds`
+  - Orientation change listener stored on instance and removed in `destroy()`
+  - Engine `start()` loop idempotency guard
+  - M1 Gate Iteration 2: **PASS** (documented in GATE_STATUS.md)
+- [x] Milestone 2: Implement 5-State Biomimetic Prey AI & High-Fidelity Sprites (`src/prey.js`)
+  - 5-State Markov FSM (`FREEZE_TREMOR`, `DART_SPRINT`, `STALK_CREEP`, `EDGE_SKITTER`, `CAUGHT_RESPAWN`)
+  - 5 High-Fidelity Dichromatic Procedural Sprites (Laser, Roach, Mouse, Koi, Bee)
+  - Multi-Prey Concurrency Manager (1–4 concurrent prey)
+  - Verified across all 156 E2E tests (156/156 passed)
+- [x] Milestone 3: Implement Input & Tab Defense Shield & 8s Annulus Exit Lock (`src/input.js`, `src/defense.js`)
+  - Multi-touch continuous pointer and touch tracking
+  - Line-segment raycast swipe detection with +42px paw pad tolerance
+  - Static sitting-paw filter (<12px over 400ms suppression)
+  - Tab Defense Shield: `beforeunload` dialog, `visibilitychange` auto-pause & audio mute, `overscroll-behavior: none`
+  - 8-Second Clockwise Annulus Exit Lock (ultra-faint ✕ corner widget with clockwise filling donut)
+  - Verified across all 156 E2E tests with production Engine, Prey, Input, Defense (156/156 passed)
+- [x] Milestone 4: Implement Procedural Web Audio API & Acoustic Lures (`src/audio.js`)
+  - FM Rodent Squeak generator (4800 -> 2600 -> 3900 Hz over 110ms)
+  - Bandpass Bug Noise generator (5200Hz, Q=3.5, 25ms percussive pulses)
+  - Resonant Water Splash generator (1200 -> 280 Hz low-pass sweep + droplet sine bend)
+  - 12-Second Distracted Cat Idle Acoustic Lure (6500Hz chirp recall system)
+  - Session Completion Ascending Treat Chime (C5-E5-G5 triad)
+  - Android Haptic Vibration ([30, 20, 40]ms pattern on catch)
+  - Verified across all 156 E2E tests with production Engine, Prey, Input, Defense, Audio (156/156 passed)
+- [x] Milestone 5: Implement Onboarding Carousel & Customization Deck (`src/ui.js`, `src/state.js`)
+  - Full-screen 5-step onboarding carousel with persistence (`pawplay_onboarded_v1`)
+  - Customization deck UI: prey selection, count (1–4), speeds, sizes, volume, timers
+  - Anti-Frustration "Complete the Hunt" Treat Reward Modal
+  - Screen Wake Lock API integration
+  - Session Timer (1m, 3m, 5m, Unlimited)
+  - Centralized reactive AppState with localStorage sync (`pawplay_state_v1`)
+  - Verified across all 156 E2E tests with production Engine, Prey, Input, Defense, Audio, State, UI (156/156 passed)
+- [ ] Milestone 6: Implement Pounce-Cam Reaction Engine & Wire index.html Application (`src/camera.js`, `index.html`)
+- [ ] Milestone 7: Vercel MCP Deploy to https://playpaw.vercel.app & PWA manifest/service worker
+- [ ] Final: Tier 5 Adversarial Hardening + 100% E2E Pass + Chrome DevTools 3-Pass Rule Verification
+- [ ] Final: Section 9 Continuous Documentation in PROJECT_PLAN.md
+- [ ] Final: Completion Report to Sentinel (02d566d0-53e1-478a-b46e-26e4ef5ebe91)
