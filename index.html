@@ -1121,9 +1121,7 @@
       await audio.unlock();
 
       if (cameraEnabled && !camera.isEnabled) {
-        try {
-          await camera.init();
-        } catch (e) {}
+        camera.init().catch(() => {});
       }
 
       // Hide Main Menu
@@ -1231,10 +1229,22 @@
       returnToMainMenu();
     });
 
-    // 8. Register Service Worker for Offline PWA Reliability
+    // 8. Register Service Worker for Offline PWA Reliability with Auto-Update
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').catch(() => {});
+        navigator.serviceWorker.register('/sw.js').then((reg) => {
+          // Immediately check for updates
+          if (reg) reg.update();
+        }).catch(() => {});
+      });
+
+      // Reload when a new service worker takes over to deliver instant updates
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!refreshing) {
+          refreshing = true;
+          window.location.reload();
+        }
       });
     }
   </script>

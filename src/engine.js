@@ -757,10 +757,14 @@ export class Engine {
 
     ctx.save();
 
+    // 0. Ensure canvas is completely cleared of previous frame to prevent sprite trailing
+    ctx.clearRect(0, 0, w, h);
+
     // -------------------------------------------------------------
     // A. Render Active Theme Background
     // -------------------------------------------------------------
     switch (this.activeTheme) {
+      case 'wood':
       case 'daylight':
       case 'floor': {
         // Warm Scandinavian birch/maple flooring (#F4F1EA)
@@ -1039,6 +1043,12 @@ export class Engine {
           ctx.fill();
         }
         ctx.globalAlpha = 1.0;
+        break;
+      }
+
+      default: {
+        ctx.fillStyle = (this.theme && this.theme.bg) ? this.theme.bg : '#F4F1EA';
+        ctx.fillRect(0, 0, w, h);
         break;
       }
     }
