@@ -453,5 +453,41 @@ timeline
   * Reduced exit hold duration from 8s to 5s.
   * Added active `.holding` scale animation (`scale(1.65)`), golden glow effect, and enlarged touch target.
 
+#### 5. "Stare-to-Pounce" Feline Motor Strike Overhaul (Ethological Occlusion & High-Fidelity Sprites)
+* **Ethological Root Cause Analysis:**
+  * When cats track prey continuously on a flat screen without swatting, they are stuck in Phase 1 ("Visual Tracking / The Stare").
+  * In feline ethology, the motor strike (Phase 2: "Pounce / Swat") is not released by uninterrupted movement in open space; it is instinctively triggered by **ambush occlusion** (prey slipping under cover, rustling, and peeking out), **aiming stillness** (prey freezing for 1.8s–3.2s with micro-twitches so the cat can calculate paw ballistic trajectory), and **trapped struggle** (sudden erratic buzz followed by dead stop).
+* **Workstream 1: Ambush Cover & Physical Occlusion (`src/engine.js`, `index.html`):**
+  * Implemented 4 natural perimeter ambush covers nestled inside safe boundaries (realistic multi-lobe autumn oak leaves for floor/tatami, floating lily pads for koi pond, dark shadow crevices for night/space).
+  * Layered canvas rendering: prey is drawn first, and ambush covers are drawn directly on top, creating true physical occlusion where prey crawls underneath.
+  * Interactive cover physics: shaking foliage animations with continuous spring-decay dampening.
+  * Border margin bypass: safe margin repulsion automatically exempts prey during `HIDE_AND_PEEK` so prey can smoothly enter perimeter foliage without artificial bouncing.
+* **Workstream 2: 7-State Biomimetic Prey AI (`src/prey.js`):**
+  * **`HIDE_AND_PEEK` State:** Prey locates the nearest ambush cover, crawls under it (0.9s–1.4s, foliage shakes with realistic rustle sound), peeks 55% of its head and antennae out for 1.8s, and then bolts into open space.
+  * **`TRAPPED_BUZZ` State:** 0.5s frantic struggle spin (rotational angular snap) with frantic leg kicks and wing buzz, immediately followed by an absolute dead stop.
+  * **`FREEZE_TREMOR` (Aiming Window):** Extended freeze duration from 0.8s to 1.8s–3.2s, providing the exact biological window needed for cats to tense their hindquarters and calibrate their paw strike. Added sharp 35° micro-twitches, hops, and leg kicks during the freeze.
+  * **`DART_SPRINT` Dynamic Evasion:** Added unpredictable mid-sprint zig-zag cuts (40°–70° sudden heading changes).
+* **Workstream 3: Bio-Acoustic Insect Wing Buzz & Leaf Rustle (`src/audio.js`):**
+  * Replaced synthetic generic sine beeps with true biological insect flight sound: 210Hz fundamental sawtooth + 420Hz harmonic with vibrato + high-frequency papery flutter (3.5–7.5 kHz).
+  * Procedural leaf rustle synthesis via dual bandpassed white noise bursts with fluttering envelope.
+  * Direct synchronization: foliage rustle and wing buzz fire precisely in sync with visual cover shakes and scurry maneuvers.
+* **Workstream 4: High-Fidelity Articulated Sprites (`src/prey.js`):**
+  * **Articulated Kicking Legs:** 6 jointed insect legs (coxa, femur, tibia, tarsus) with dynamic stride cycle during crawl/scurry, and rapid flutter kicks during struggle and freeze micro-twitches.
+  * **Motion-Blur Wing Arcs:** High-speed wing-flutter motion blur arcs with translucent cyan tint.
+  * **Glossy Compound Eyes:** High-contrast multi-faceted insect eyes with crisp white specular highlight reflections.
+  * **Rodent Respiration:** Added subtle breathing ribcage expansion during mouse freeze states.
+* **Service Worker & Cache Upgrade (`sw.js`):**
+  * Bumped cache version to `pawplay-v3`.
+  * Configured Network-First caching strategy for JS modules and HTML so updates load instantly on iPads and mobile devices without stale cache traps.
+* **Tier 5 Test Suite Certification (`tests/suites/tier5_stare_to_pounce.js`):**
+  * **172 / 172 tests passed (100% success rate)** across all 5 test tiers:
+    * `TC-SP01`: Ambush covers initialization, safe margin boundaries, and shake spring decay.
+    * `TC-SP02`: `HIDE_AND_PEEK` state sequence (approach, hide under cover, peek-out 55%, emerge bolt).
+    * `TC-SP03`: `TRAPPED_BUZZ` erratic rotational struggle and transition to dead-stop freeze.
+    * `TC-SP04`: Extended 1.8s–3.2s aiming window and sharp 35° micro-twitch snaps.
+    * `TC-SP05`: `DART_SPRINT` erratic mid-flight zig-zag cuts.
+    * `TC-SP06`: Procedural insect buzz and leaf rustle Web Audio synthesis.
+
+
 
 

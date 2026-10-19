@@ -20,6 +20,7 @@ require('./suites/tier1_features.js');
 require('./suites/tier2_boundaries.js');
 require('./suites/tier3_pairwise.js');
 require('./suites/tier4_scenarios.js');
+require('./suites/tier5_stare_to_pounce.js');
 
 // ANSI escape codes for formatting
 const GREEN = '\x1b[32m';

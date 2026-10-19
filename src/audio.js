@@ -245,6 +245,141 @@ export class SoundSynthesizer {
   }
 
   /**
+   * Authentic Trapped Bee / Housefly Buzz (190-250 Hz fundamental + wing flutter harmonics)
+   * Simulates an insect trapped against glass or spinning on the floor.
+   * @param {number} t - AudioContext current time
+   * @param {AudioNode} destination - Destination or StereoPanner
+   * @param {number} [duration=0.18] - Duration in seconds
+   * @private
+   */
+  _playInsectBuzz(t, destination, duration = 0.18) {
+    if (!this.ctx || !this.ctx.createOscillator) return;
+    try {
+      // 1. Thorax vibration (Sawtooth 205-245 Hz with micro-flutter FM)
+      const osc = this.ctx.createOscillator();
+      const oscHarmonic = this.ctx.createOscillator();
+      const buzzGain = this.ctx.createGain ? this.ctx.createGain() : null;
+      const buzzFilter = this.ctx.createBiquadFilter ? this.ctx.createBiquadFilter() : null;
+
+      const baseFreq = 215 + (Math.random() - 0.5) * 30; // 200 - 230 Hz
+      osc.type = 'sawtooth';
+      if (osc.frequency && osc.frequency.setValueAtTime) {
+        osc.frequency.setValueAtTime(baseFreq, t);
+        if (osc.frequency.linearRampToValueAtTime) {
+          osc.frequency.linearRampToValueAtTime(baseFreq + 35, t + duration * 0.4);
+          osc.frequency.linearRampToValueAtTime(baseFreq - 15, t + duration * 0.8);
+          osc.frequency.linearRampToValueAtTime(baseFreq + 10, t + duration);
+        }
+      }
+
+      // Harmonic overtone for realistic buzzing resonance
+      oscHarmonic.type = 'sawtooth';
+      if (oscHarmonic.frequency && oscHarmonic.frequency.setValueAtTime) {
+        oscHarmonic.frequency.setValueAtTime(baseFreq * 2, t);
+        if (oscHarmonic.frequency.linearRampToValueAtTime) {
+          oscHarmonic.frequency.linearRampToValueAtTime(baseFreq * 2 + 50, t + duration * 0.5);
+        }
+      }
+
+      // Bandpass shaping for insect exoskeleton acoustics
+      if (buzzFilter && buzzFilter.frequency && buzzFilter.frequency.setValueAtTime) {
+        buzzFilter.type = 'bandpass';
+        buzzFilter.frequency.setValueAtTime(950, t);
+        buzzFilter.Q.setValueAtTime(1.8, t);
+      }
+
+      // Volume envelope with struggle bursts
+      let outputNode = null;
+      if (buzzGain && buzzGain.gain && buzzGain.gain.setValueAtTime) {
+        buzzGain.gain.setValueAtTime(0.01, t);
+        if (buzzGain.gain.linearRampToValueAtTime) {
+          buzzGain.gain.linearRampToValueAtTime(0.65 * this.volume, t + 0.015);
+          buzzGain.gain.linearRampToValueAtTime(0.50 * this.volume, t + duration * 0.7);
+          buzzGain.gain.linearRampToValueAtTime(0.001, t + duration);
+        }
+        osc.connect(buzzGain);
+        oscHarmonic.connect(buzzGain);
+        outputNode = buzzGain;
+
+        if (buzzFilter) {
+          buzzGain.connect(buzzFilter);
+          outputNode = buzzFilter;
+        }
+      } else {
+        outputNode = destination;
+        if (destination) {
+          osc.connect(destination);
+          oscHarmonic.connect(destination);
+        }
+      }
+
+      if (outputNode && destination && outputNode !== destination) {
+        outputNode.connect(destination);
+      }
+
+      osc.start(t);
+      oscHarmonic.start(t);
+      osc.stop(t + duration);
+      oscHarmonic.stop(t + duration);
+
+      // 2. High-frequency papery wing flutter against surface (3.5 kHz - 7.5 kHz)
+      this._playCrinkleScurry(t, destination, duration * 0.75);
+    } catch (e) {}
+  }
+
+  /**
+   * Leaf Rustle / Crinkle sound when prey scurries or trembles under cover.
+   * @param {number} t
+   * @param {AudioNode} destination
+   * @param {number} [duration=0.15]
+   * @private
+   */
+  _playLeafRustle(t, destination, duration = 0.15) {
+    if (!this.ctx || !this.ctx.createBuffer || !this.ctx.createBufferSource) return;
+    try {
+      const bufferSize = Math.floor(this.ctx.sampleRate * duration);
+      if (bufferSize <= 0) return;
+      const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+
+      for (let i = 0; i < bufferSize; i++) {
+        const envelope = Math.sin((i / bufferSize) * Math.PI);
+        const rustlePulse = (i % 120 < 60) ? 1.0 : 0.4;
+        data[i] = (Math.random() * 2 - 1) * envelope * rustlePulse;
+      }
+
+      const source = this.ctx.createBufferSource();
+      source.buffer = buffer;
+
+      const filter = this.ctx.createBiquadFilter ? this.ctx.createBiquadFilter() : null;
+      if (filter && filter.frequency && filter.frequency.setValueAtTime) {
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(5400, t);
+        filter.Q.setValueAtTime(1.5, t);
+      }
+
+      const gain = this.ctx.createGain ? this.ctx.createGain() : null;
+      if (gain && gain.gain && gain.gain.setValueAtTime) {
+        gain.gain.setValueAtTime(0.45 * this.volume, t);
+        if (gain.gain.linearRampToValueAtTime) {
+          gain.gain.linearRampToValueAtTime(0.001, t + duration);
+        }
+      }
+
+      if (filter && gain) {
+        source.connect(filter);
+        filter.connect(gain);
+        if (destination) gain.connect(destination);
+      } else if (destination) {
+        source.connect(destination);
+      }
+
+      source.start(t);
+      source.stop(t + duration);
+    } catch (e) {}
+  }
+
+  /**
    * Resonant Water Splash & Surface Tension Pop
    * @private
    */
@@ -349,15 +484,50 @@ export class SoundSynthesizer {
       try { panner.connect(dest); dest = panner; } catch (e) {}
     }
 
-    if (preyType === 'mouse') {
-      this._playCrinkleScurry(t, dest, 0.08);
-    } else if (preyType === 'bug' || preyType === 'bee') {
+    if (preyType === 'bee') {
+      this._playInsectBuzz(t, dest, 0.22);
+    } else if (preyType === 'bug') {
+      this._playInsectBuzz(t, dest, 0.16);
       this._playBugClick(t, dest);
+    } else if (preyType === 'mouse') {
+      this._playCrinkleScurry(t, dest, 0.08);
     } else if (preyType === 'koi') {
       this._playWaterSplash(t, dest);
     } else {
       this._playCrinkleScurry(t, dest, 0.05);
     }
+  }
+
+  /**
+   * Explicitly triggers an authentic insect wing buzz burst.
+   * @param {number} [panX=0]
+   * @param {number} [duration=0.2]
+   */
+  playInsectBuzz(panX = 0, duration = 0.2) {
+    if (this.isMuted || !this.ctx) return;
+    const t = this.ctx.currentTime || 0;
+    const panner = this._getPanner(panX);
+    let dest = this.ctx.destination;
+    if (panner && dest) {
+      try { panner.connect(dest); dest = panner; } catch (e) {}
+    }
+    this._playInsectBuzz(t, dest, duration);
+  }
+
+  /**
+   * Explicitly triggers an ambush cover leaf rustle sound.
+   * @param {number} [panX=0]
+   * @param {number} [duration=0.18]
+   */
+  playLeafRustle(panX = 0, duration = 0.18) {
+    if (this.isMuted || !this.ctx) return;
+    const t = this.ctx.currentTime || 0;
+    const panner = this._getPanner(panX);
+    let dest = this.ctx.destination;
+    if (panner && dest) {
+      try { panner.connect(dest); dest = panner; } catch (e) {}
+    }
+    this._playLeafRustle(t, dest, duration);
   }
 
   /**

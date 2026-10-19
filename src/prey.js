@@ -18,7 +18,7 @@
  */
 
 export const PREY_TYPES = ['laser', 'bug', 'mouse', 'koi', 'bee'];
-export const PREY_STATES = ['FREEZE_TREMOR', 'DART_SPRINT', 'STALK_CREEP', 'EDGE_SKITTER', 'CAUGHT_RESPAWN'];
+export const PREY_STATES = ['FREEZE_TREMOR', 'DART_SPRINT', 'STALK_CREEP', 'EDGE_SKITTER', 'CAUGHT_RESPAWN', 'HIDE_AND_PEEK', 'TRAPPED_BUZZ'];
 export const SPEED_MODES = { kitten: 180, hunter: 400, apex: 750, ludicrous: 1100 };
 export const SIZE_MODES = { tiny: 36, normal: 54, chonky: 76 };
 export const PAW_PAD_TOLERANCE = 55;
@@ -89,6 +89,15 @@ export class PreyAgent {
     this.isRespawning = false;
     this.offscreenTimer = 0; // Tracks duration spent past visible screen bounds
 
+    // Feline pounce triggers & occlusion properties
+    this.twitchTimer = 0;
+    this.isUnderCover = false;
+    this.coverPhase = 'none'; // 'none' | 'approaching' | 'hiding' | 'peeking' | 'emerging'
+    this.coverSubTimer = 0;
+    this.cutTimer = 0;
+    this.legKick = 0;
+    this.onAudioTrigger = null; // Callback: (actionType, panX) => void
+
     // Kinematics and procedural animation timers
     this.animTime = Math.random() * 10;
     this.trailHistory = []; // For laser motion ribbon
@@ -125,6 +134,20 @@ export class PreyAgent {
         this.vx = 0;
         this.vy = 0;
         this.jitter = 0;
+        this.twitchTimer = 0;
+        break;
+
+      case 'TRAPPED_BUZZ':
+        this.vx = 0;
+        this.vy = 0;
+        this.jitter = 0;
+        this.legKick = 1.0;
+        break;
+
+      case 'HIDE_AND_PEEK':
+        this.coverPhase = 'approaching';
+        this.coverSubTimer = 0;
+        this.isUnderCover = false;
         break;
 
       case 'DART_SPRINT': {
@@ -133,6 +156,8 @@ export class PreyAgent {
         this.vx = Math.cos(sprintAngle) * sprintSpeed;
         this.vy = Math.sin(sprintAngle) * sprintSpeed;
         this.heading = sprintAngle;
+        this.cutTimer = 0;
+        this.isUnderCover = false;
         break;
       }
 
@@ -140,6 +165,7 @@ export class PreyAgent {
         const creepSpeed = this.baseSpeed * 0.45;
         this.vx = Math.cos(this.heading) * creepSpeed;
         this.vy = Math.sin(this.heading) * creepSpeed;
+        this.isUnderCover = false;
         break;
       }
 
@@ -147,6 +173,7 @@ export class PreyAgent {
         const skitterSpeed = this.baseSpeed * 1.2;
         this.vx = Math.cos(this.heading) * skitterSpeed;
         this.vy = Math.sin(this.heading) * skitterSpeed;
+        this.isUnderCover = false;
         break;
       }
 
@@ -155,6 +182,7 @@ export class PreyAgent {
         this.vy = 0;
         this.squishProgress = 0;
         this.isRespawning = true;
+        this.isUnderCover = false;
         break;
     }
   }
@@ -163,17 +191,150 @@ export class PreyAgent {
    * Advances the prey agent physics and state machine.
    * @param {number} dt - Clamped delta-time
    * @param {object} safeArea - { top, bottom, left, right }
+   * @param {Array} [ambushCovers] - List of ambush covers for peek-a-boo occlusion
    */
-  update(dt, safeArea = { top: 72, bottom: 696, left: 48, right: 976 }) {
+  update(dt, safeArea = { top: 72, bottom: 696, left: 48, right: 976 }, ambushCovers = []) {
     const validDt = (typeof dt === 'number' && Number.isFinite(dt) && dt >= 0) ? dt : 0.016;
     this.animTime += validDt;
     this.stateTimer += validDt;
 
-    // State 1: FREEZE_TREMOR
+    // State 1: FREEZE_TREMOR (Longer 1.8s - 3.2s aiming pause with sharp micro-twitches)
     if (this.state === 'FREEZE_TREMOR') {
-      this.jitter = Math.sin(this.stateTimer * 45) * 1.5;
+      this.twitchTimer += validDt;
+      if (this.twitchTimer > 0.45) {
+        this.twitchTimer = 0;
+        this.heading += (Math.random() - 0.5) * 1.1; // crisp 30-40° angle snap
+        this.jitter = (Math.random() - 0.5) * 4.5;
+        this.legKick = 1.0;
+        // Micro-hop
+        this.x += Math.cos(this.heading) * (3 + Math.random() * 4);
+        this.y += Math.sin(this.heading) * (3 + Math.random() * 4);
+        if (this.onAudioTrigger) {
+          const w = (safeArea && safeArea.right) ? safeArea.right : 1024;
+          this.onAudioTrigger('twitch', (this.x / w) * 2 - 1);
+        }
+      } else {
+        this.jitter = Math.sin(this.stateTimer * 45) * 1.5;
+      }
+
+      if (this.legKick > 0) {
+        this.legKick = Math.max(0, this.legKick - validDt * 4.5);
+      }
+
       if (this.stateTimer >= this.stateDuration) {
-        this.changeState('DART_SPRINT', 0.6 + Math.random() * 0.3);
+        const rand = Math.random();
+        if (this.type === 'bee' || this.type === 'bug') {
+          if (rand < 0.40) {
+            this.changeState('TRAPPED_BUZZ', 0.5 + Math.random() * 0.3);
+          } else if (rand < 0.75) {
+            this.changeState('DART_SPRINT', 0.8 + Math.random() * 0.5);
+          } else {
+            this.changeState('HIDE_AND_PEEK', 3.5);
+          }
+        } else {
+          if (rand < 0.55) {
+            this.changeState('DART_SPRINT', 0.9 + Math.random() * 0.5);
+          } else if (rand < 0.85) {
+            this.changeState('HIDE_AND_PEEK', 3.5);
+          } else {
+            this.changeState('STALK_CREEP', 1.4);
+          }
+        }
+      }
+      return;
+    }
+
+    // State: TRAPPED_BUZZ (Frantic 0.5s struggle spin & wing flap)
+    if (this.state === 'TRAPPED_BUZZ') {
+      this.heading += (Math.random() - 0.5) * 32 * validDt;
+      this.jitter = Math.sin(this.stateTimer * 60) * 3.5;
+      this.legKick = 1.0;
+      const spinSpeed = this.baseSpeed * 0.35;
+      this.vx = Math.cos(this.heading) * spinSpeed;
+      this.vy = Math.sin(this.heading) * spinSpeed;
+      this.x += this.vx * validDt;
+      this.y += this.vy * validDt;
+
+      if (this.onAudioTrigger && Math.random() < 0.3) {
+        const w = (safeArea && safeArea.right) ? safeArea.right : 1024;
+        this.onAudioTrigger('buzz', (this.x / w) * 2 - 1);
+      }
+
+      if (this.stateTimer >= this.stateDuration) {
+        // Sudden dead-stop freeze right after frantic struggle!
+        this.changeState('FREEZE_TREMOR', 2.0 + Math.random() * 1.0);
+      }
+      return;
+    }
+
+    // State: HIDE_AND_PEEK (Peek-a-Boo Ambush Occlusion)
+    if (this.state === 'HIDE_AND_PEEK') {
+      this.coverSubTimer += validDt;
+
+      let targetCover = null;
+      if (ambushCovers && ambushCovers.length > 0) {
+        let bestDist = Infinity;
+        for (const c of ambushCovers) {
+          const d = Math.hypot(c.x - this.x, c.y - this.y);
+          if (d < bestDist) {
+            bestDist = d;
+            targetCover = c;
+          }
+        }
+      }
+
+      const tx = targetCover ? targetCover.x : (safeArea.left + 90);
+      const ty = targetCover ? targetCover.y : (safeArea.top + 80);
+      const dToCover = Math.hypot(tx - this.x, ty - this.y);
+
+      if (this.coverPhase === 'approaching') {
+        const angle = Math.atan2(ty - this.y, tx - this.x);
+        this.heading = angle;
+        const speed = this.baseSpeed * 1.35;
+        this.vx = Math.cos(angle) * speed;
+        this.vy = Math.sin(angle) * speed;
+        this.x += this.vx * validDt;
+        this.y += this.vy * validDt;
+
+        if (dToCover < (targetCover ? targetCover.radius * 0.6 : 35)) {
+          this.coverPhase = 'hiding';
+          this.coverSubTimer = 0;
+          this.isUnderCover = true;
+          this.vx = 0;
+          this.vy = 0;
+          if (targetCover && typeof targetCover.shakeAmount !== 'undefined') {
+            targetCover.shakeAmount = 4.5;
+          }
+          if (this.onAudioTrigger) {
+            const w = (safeArea && safeArea.right) ? safeArea.right : 1024;
+            this.onAudioTrigger('rustle', (this.x / w) * 2 - 1);
+          }
+        }
+      } else if (this.coverPhase === 'hiding') {
+        this.vx = 0;
+        this.vy = 0;
+        if (this.coverSubTimer >= 1.1) {
+          this.coverPhase = 'peeking';
+          this.coverSubTimer = 0;
+          const centerX = (safeArea.left + safeArea.right) / 2;
+          const centerY = (safeArea.top + safeArea.bottom) / 2;
+          const peekAngle = Math.atan2(centerY - this.y, centerX - this.x);
+          this.heading = peekAngle;
+          this.x += Math.cos(peekAngle) * (this.radius * 0.55);
+          this.y += Math.sin(peekAngle) * (this.radius * 0.55);
+          if (targetCover && typeof targetCover.shakeAmount !== 'undefined') {
+            targetCover.shakeAmount = 3.0;
+          }
+        }
+      } else if (this.coverPhase === 'peeking') {
+        this.vx = 0;
+        this.vy = 0;
+        this.jitter = Math.sin(this.stateTimer * 30) * 2.5;
+        if (this.coverSubTimer >= 1.8) {
+          this.coverPhase = 'emerging';
+          this.isUnderCover = false;
+          this.changeState('DART_SPRINT', 1.0 + Math.random() * 0.4);
+        }
       }
       return;
     }
@@ -183,7 +344,6 @@ export class PreyAgent {
       this.squishProgress = Math.min(1.0, this.stateTimer / 0.18);
       if (this.stateTimer >= 0.88) { // 180ms squish + 700ms offscreen delay
         this.isRespawning = false;
-        // Re-enter from safe area margin
         const pad = this.radius + 10;
         const w = safeArea.right - safeArea.left;
         const h = safeArea.bottom - safeArea.top;
@@ -193,6 +353,18 @@ export class PreyAgent {
         this.changeState('STALK_CREEP', 1.5);
       }
       return;
+    }
+
+    // State 2: DART_SPRINT with erratic zig-zag cuts
+    if (this.state === 'DART_SPRINT') {
+      this.cutTimer += validDt;
+      if (this.cutTimer > 0.25) {
+        this.cutTimer = 0;
+        this.heading += (Math.random() - 0.5) * 1.25;
+        const sprintSpeed = this.baseSpeed * 1.8;
+        this.vx = Math.cos(this.heading) * sprintSpeed;
+        this.vy = Math.sin(this.heading) * sprintSpeed;
+      }
     }
 
     // Integrate position
@@ -214,7 +386,6 @@ export class PreyAgent {
 
     if (isOffscreen) {
       this.offscreenTimer += validDt;
-      // After a brief excursion (~0.4s), turn around and re-emerge quickly
       if (this.offscreenTimer > 0.45) {
         const centerX = (safeArea.left + safeArea.right) / 2;
         const centerY = (safeArea.top + safeArea.bottom) / 2;
@@ -225,7 +396,6 @@ export class PreyAgent {
         this.heading = angle;
       }
       if (this.offscreenTimer > 1.0) {
-        // Enforce maximum excursion duration limit
         this.x = Math.max(safeArea.left - 20, Math.min(safeArea.right + 20, this.x));
         this.y = Math.max(safeArea.top - 20, Math.min(safeArea.bottom + 20, this.y));
         this.offscreenTimer = 0;
@@ -238,9 +408,15 @@ export class PreyAgent {
     if (this.stateTimer >= this.stateDuration) {
       const rand = Math.random();
       if (this.state === 'DART_SPRINT') {
-        this.changeState('FREEZE_TREMOR', 0.8 + Math.random() * 1.0);
+        this.changeState('FREEZE_TREMOR', 1.8 + Math.random() * 1.2);
       } else if (this.state === 'STALK_CREEP') {
-        this.changeState(rand > 0.4 ? 'DART_SPRINT' : 'EDGE_SKITTER', 0.8 + Math.random() * 0.5);
+        if (rand < 0.4) {
+          this.changeState('DART_SPRINT', 0.8 + Math.random() * 0.5);
+        } else if (rand < 0.7) {
+          this.changeState('EDGE_SKITTER', 0.8 + Math.random() * 0.5);
+        } else {
+          this.changeState('HIDE_AND_PEEK', 3.5);
+        }
       } else if (this.state === 'EDGE_SKITTER') {
         this.changeState('DART_SPRINT', 0.7 + Math.random() * 0.4);
       }
@@ -552,15 +728,16 @@ export class PreyAgent {
       ctx.restore();
     }
 
-    // Grey-blue body teardrop
+    // Grey-blue body teardrop with subtle breathing expansion during freeze state
     const bodyGrad = ctx.createRadialGradient(-R * 0.1, 0, R * 0.1, 0, 0, R);
     bodyGrad.addColorStop(0, '#718096');
     bodyGrad.addColorStop(0.6, '#4A5568');
     bodyGrad.addColorStop(1, '#2D3748');
 
+    const breathe = (this.state === 'FREEZE_TREMOR') ? Math.sin(this.animTime * 6) * (R * 0.05) : 0;
     ctx.fillStyle = bodyGrad;
     ctx.beginPath();
-    ctx.ellipse(0, 0, R * 0.85, R * 0.52, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 0, R * 0.85 + breathe, R * 0.52 + breathe, 0, 0, Math.PI * 2);
     ctx.fill();
 
     // Rounded Ears (cream outer, pink inner)
@@ -681,27 +858,81 @@ export class PreyAgent {
   }
 
   /**
-   * 5. Bumblebee (Yellow/Black stripes, 60Hz fluttering wings)
+   * 5. Bumblebee (Articulated jointed legs, iridescent veined wings, wing blur arcs, compound eyes)
    */
   _drawBee(ctx, R) {
-    const wingFlap = Math.sin(this.animTime * 60);
+    const isBuzzing = (this.state === 'TRAPPED_BUZZ' || this.state === 'DART_SPRINT' || this.legKick > 0);
+    const wingFlap = Math.sin(this.animTime * (isBuzzing ? 120 : 60));
 
-    // Translucent Wing Pairs (fluttering at 60Hz)
-    ctx.fillStyle = 'rgba(0, 229, 255, 0.35)';
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
-    ctx.lineWidth = 1;
+    // 1. 6 Articulated Black Jointed Legs (Coxa, Femur, Tibia, Tarsus)
+    ctx.strokeStyle = '#110D09';
+    ctx.lineWidth = Math.max(1.4, R * 0.05);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    const legWave = Math.sin(this.animTime * 25);
+    const kick = this.legKick * 0.4;
+
+    [-1, 1].forEach((side) => {
+      // Front Leg (reaching forward)
+      ctx.beginPath();
+      ctx.moveTo(R * 0.35, side * R * 0.28);
+      ctx.lineTo(R * 0.6, side * (R * 0.55 + legWave * 4 + kick * 6));
+      ctx.lineTo(R * 0.85, side * (R * 0.75 + kick * 8));
+      ctx.stroke();
+
+      // Middle Leg (reaching lateral)
+      ctx.beginPath();
+      ctx.moveTo(R * 0.05, side * R * 0.32);
+      ctx.lineTo(R * 0.1, side * (R * 0.75 - legWave * 4 + kick * 6));
+      ctx.lineTo(R * 0.2, side * (R * 0.98 + kick * 8));
+      ctx.stroke();
+
+      // Hind Leg (reaching back)
+      ctx.beginPath();
+      ctx.moveTo(-R * 0.25, side * R * 0.3);
+      ctx.lineTo(-R * 0.5, side * (R * 0.75 + legWave * 4 + kick * 6));
+      ctx.lineTo(-R * 0.8, side * (R * 0.95 + kick * 8));
+      ctx.stroke();
+    });
+
+    // 2. High-Speed Wing-Flutter Motion Blur Arcs (when buzzing / struggling)
+    if (isBuzzing) {
+      ctx.save();
+      ctx.fillStyle = 'rgba(0, 229, 255, 0.22)';
+      ctx.beginPath();
+      ctx.ellipse(R * 0.1, -R * 0.65, R * 0.35, R * 0.75, -0.4, 0, Math.PI * 2);
+      ctx.ellipse(R * 0.1, R * 0.65, R * 0.35, R * 0.75, 0.4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // 3. Translucent Veined Wing Pairs
+    ctx.fillStyle = 'rgba(0, 229, 255, 0.4)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+    ctx.lineWidth = 1.2;
 
     // Left Wing Pair
     ctx.save();
     ctx.translate(R * 0.1, -R * 0.25);
-    ctx.scale(1, wingFlap * 0.9);
+    ctx.scale(1, wingFlap * (isBuzzing ? 1.0 : 0.7));
     ctx.beginPath();
-    ctx.ellipse(R * 0.1, -R * 0.65, R * 0.22, R * 0.55, -0.4, 0, Math.PI * 2);
+    ctx.ellipse(R * 0.1, -R * 0.65, R * 0.24, R * 0.58, -0.4, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
 
+    // Subtle wing vein
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.lineWidth = 0.8;
     ctx.beginPath();
-    ctx.ellipse(-R * 0.2, -R * 0.5, R * 0.16, R * 0.4, -0.7, 0, Math.PI * 2);
+    ctx.moveTo(0, 0);
+    ctx.lineTo(R * 0.1, -R * 0.75);
+    ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.ellipse(-R * 0.2, -R * 0.5, R * 0.17, R * 0.42, -0.7, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
     ctx.restore();
@@ -709,19 +940,28 @@ export class PreyAgent {
     // Right Wing Pair
     ctx.save();
     ctx.translate(R * 0.1, R * 0.25);
-    ctx.scale(1, -wingFlap * 0.9);
+    ctx.scale(1, -wingFlap * (isBuzzing ? 1.0 : 0.7));
     ctx.beginPath();
-    ctx.ellipse(R * 0.1, R * 0.65, R * 0.22, R * 0.55, 0.4, 0, Math.PI * 2);
+    ctx.ellipse(R * 0.1, R * 0.65, R * 0.24, R * 0.58, 0.4, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
 
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.lineWidth = 0.8;
     ctx.beginPath();
-    ctx.ellipse(-R * 0.2, R * 0.5, R * 0.16, R * 0.4, 0.7, 0, Math.PI * 2);
+    ctx.moveTo(0, 0);
+    ctx.lineTo(R * 0.1, R * 0.75);
+    ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.ellipse(-R * 0.2, R * 0.5, R * 0.17, R * 0.42, 0.7, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
     ctx.restore();
 
-    // Fuzzy Abdomen: Alternating Vivid Yellow (#FFD600) and Black Bands
+    // 4. Fuzzy Abdomen: Alternating Vivid Yellow (#FFD600) and Black Bands
     ctx.fillStyle = '#1A110B';
     ctx.beginPath();
     ctx.ellipse(-R * 0.15, 0, R * 0.75, R * 0.48, 0, 0, Math.PI * 2);
@@ -735,37 +975,45 @@ export class PreyAgent {
       ctx.fill();
     });
 
-    // Fuzzy Head
+    // 5. Fuzzy Thorax & Head
     ctx.fillStyle = '#110D09';
     ctx.beginPath();
     ctx.ellipse(R * 0.65, 0, R * 0.28, R * 0.32, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Dark Compound Eyes
+    // 6. Dark Compound Eyes with Specular Highlight Dot
     ctx.fillStyle = '#000000';
     ctx.beginPath();
-    ctx.ellipse(R * 0.7, -R * 0.2, R * 0.1, R * 0.14, 0.2, 0, Math.PI * 2);
-    ctx.ellipse(R * 0.7, R * 0.2, R * 0.1, R * 0.14, -0.2, 0, Math.PI * 2);
+    ctx.ellipse(R * 0.7, -R * 0.2, R * 0.11, R * 0.15, 0.2, 0, Math.PI * 2);
+    ctx.ellipse(R * 0.7, R * 0.2, R * 0.11, R * 0.15, -0.2, 0, Math.PI * 2);
     ctx.fill();
 
-    // Curled Antennae
+    // Glossy Specular White Reflection Dot
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.arc(R * 0.74, -R * 0.22, Math.max(1, R * 0.035), 0, Math.PI * 2);
+    ctx.arc(R * 0.74, R * 0.18, Math.max(1, R * 0.035), 0, Math.PI * 2);
+    ctx.fill();
+
+    // 7. Curled Antennae
+    const antTwitch = (this.state === 'FREEZE_TREMOR' ? Math.sin(this.animTime * 20) * 0.1 : 0);
     ctx.strokeStyle = '#FFD600';
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = 1.8;
     ctx.beginPath();
     ctx.moveTo(R * 0.85, -R * 0.08);
-    ctx.quadraticCurveTo(R * 1.15, -R * 0.25, R * 1.25, -R * 0.15);
+    ctx.quadraticCurveTo(R * 1.15, -R * (0.25 + antTwitch), R * 1.28, -R * (0.15 + antTwitch));
     ctx.stroke();
 
     ctx.beginPath();
     ctx.moveTo(R * 0.85, R * 0.08);
-    ctx.quadraticCurveTo(R * 1.15, R * 0.25, R * 1.25, R * 0.15);
+    ctx.quadraticCurveTo(R * 1.15, R * (0.25 - antTwitch), R * 1.28, R * (0.15 - antTwitch));
     ctx.stroke();
 
-    // Stinger
+    // 8. Stinger
     ctx.fillStyle = '#000000';
     ctx.beginPath();
     ctx.moveTo(-R * 0.85, -R * 0.06);
-    ctx.lineTo(-R * 1.1, 0);
+    ctx.lineTo(-R * 1.12, 0);
     ctx.lineTo(-R * 0.85, R * 0.06);
     ctx.closePath();
     ctx.fill();
@@ -812,10 +1060,11 @@ export class PreyManager {
    * Updates all active prey agents.
    * @param {number} dt
    * @param {object} [safeArea]
+   * @param {Array} [ambushCovers]
    */
-  update(dt, safeArea = { top: 72, bottom: 696, left: 48, right: 976 }) {
+  update(dt, safeArea = { top: 72, bottom: 696, left: 48, right: 976 }, ambushCovers = []) {
     for (let i = 0; i < this.preyList.length; i++) {
-      this.preyList[i].update(dt, safeArea);
+      this.preyList[i].update(dt, safeArea, ambushCovers);
     }
   }
 

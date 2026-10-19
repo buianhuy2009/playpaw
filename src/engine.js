@@ -198,12 +198,15 @@ export class Engine {
     this.shockwaves = [];
     this.ripples = [];
     this.preyList = [];
+    this.ambushCovers = [];
     this.onTick = null; // Callback: (dt, engine) => void
 
     // Bound listeners for event cleanup
     this.handleResize = this.resize.bind(this);
     this._onOrientationChange = () => setTimeout(this.handleResize, 100);
     this.handleOrientation = this._onOrientationChange;
+
+    this.initAmbushCovers();
 
     if (this.canvas) {
       this.init(this.canvas);
@@ -288,6 +291,7 @@ export class Engine {
    */
   resize() {
     this.updateDpi();
+    this.initAmbushCovers();
   }
 
   /**
@@ -469,6 +473,15 @@ export class Engine {
 
     let ax = 0;
     let ay = 0;
+
+    // If sprite is in HIDE_AND_PEEK, suppress soft repulsion to allow entering and nestling under ambush covers
+    if (sprite.state === 'HIDE_AND_PEEK') {
+      if (sprite.x < xMin) sprite.x = xMin;
+      if (sprite.x > xMax) sprite.x = xMax;
+      if (sprite.y < yMin) sprite.y = yMin;
+      if (sprite.y > yMax) sprite.y = yMax;
+      return;
+    }
 
     // -------------------------------------------------------------
     // TIER 1: Smooth Inward Steering Field
@@ -725,11 +738,150 @@ export class Engine {
       const safeArea = this.getDimensions().safeArea;
       for (const prey of this.preyList) {
         if (prey && typeof prey.update === 'function') {
-          prey.update(normalizedDt, safeArea);
+          prey.update(normalizedDt, safeArea, this.ambushCovers);
         }
         this.applySafeMargins(prey, normalizedDt);
       }
     }
+
+    // 5. Update ambush covers (decay shakeAmount)
+    if (this.ambushCovers) {
+      for (const cover of this.ambushCovers) {
+        if (cover.shakeAmount > 0.05) {
+          cover.shakeAmount *= Math.max(0, 1 - 9 * normalizedDt);
+        } else {
+          cover.shakeAmount = 0;
+        }
+      }
+    }
+  }
+
+  /**
+   * Initializes or recalculates 4 natural perimeter ambush covers.
+   */
+  initAmbushCovers() {
+    const rawW = this.width || this.logicalWidth || 1024;
+    const rawH = this.height || this.logicalHeight || 768;
+    const w = (Number.isFinite(rawW) && rawW > 0) ? rawW : 1024;
+    const h = (Number.isFinite(rawH) && rawH > 0) ? rawH : 768;
+
+    const safeLeft = SAFE_MARGINS.SIDES;
+    const safeRight = w - SAFE_MARGINS.SIDES;
+    const safeTop = SAFE_MARGINS.TOP;
+    const safeBottom = h - SAFE_MARGINS.BOTTOM;
+
+    this.ambushCovers = [
+      { id: 1, x: safeLeft + 85, y: safeTop + 75, radius: 54, angle: 0.35, shakeAmount: 0 },
+      { id: 2, x: safeRight - 95, y: safeTop + 85, radius: 58, angle: -0.55, shakeAmount: 0 },
+      { id: 3, x: safeLeft + 110, y: safeBottom - 80, radius: 60, angle: 0.85, shakeAmount: 0 },
+      { id: 4, x: safeRight - 105, y: safeBottom - 95, radius: 56, angle: -0.4, shakeAmount: 0 }
+    ];
+  }
+
+  getAmbushCovers() {
+    return this.ambushCovers || [];
+  }
+
+  shakeCover(coverId, intensity = 4.5) {
+    if (!this.ambushCovers) return;
+    const cover = this.ambushCovers.find(c => c.id === coverId);
+    if (cover) {
+      cover.shakeAmount = Math.max(cover.shakeAmount || 0, intensity);
+    }
+  }
+
+  drawAmbushCovers(ctx) {
+    if (!ctx || !this.ambushCovers) return;
+    ctx.save();
+
+    for (const cover of this.ambushCovers) {
+      ctx.save();
+      const shakeX = cover.shakeAmount ? (Math.random() - 0.5) * cover.shakeAmount : 0;
+      const shakeY = cover.shakeAmount ? (Math.random() - 0.5) * cover.shakeAmount : 0;
+      ctx.translate(cover.x + shakeX, cover.y + shakeY);
+      ctx.rotate(cover.angle);
+
+      const R = cover.radius || 50;
+
+      // Soft ambient drop shadow under cover
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
+      ctx.shadowBlur = 12;
+      ctx.shadowOffsetX = 4;
+      ctx.shadowOffsetY = 6;
+
+      if (this.activeTheme === 'pond') {
+        // Lily Pad
+        ctx.fillStyle = '#1D5A43';
+        ctx.beginPath();
+        ctx.arc(0, 0, R, 0.3, Math.PI * 2 - 0.3);
+        ctx.lineTo(0, 0);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.shadowColor = 'transparent';
+        ctx.strokeStyle = '#2F855A';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+        ctx.lineWidth = 1.2;
+        for (let a = 0.6; a < Math.PI * 2 - 0.6; a += 0.7) {
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.lineTo(Math.cos(a) * R * 0.85, Math.sin(a) * R * 0.85);
+          ctx.stroke();
+        }
+      } else if (this.activeTheme === 'night' || this.activeTheme === 'space') {
+        // Dark fabric fold / shadow crevice
+        ctx.fillStyle = 'rgba(15, 20, 32, 0.9)';
+        ctx.beginPath();
+        ctx.ellipse(0, 0, R * 1.2, R * 0.65, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.shadowColor = 'transparent';
+        ctx.strokeStyle = 'rgba(0, 229, 255, 0.2)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      } else {
+        // Natural Autumn Oak / Maple Leaf (Warm amber & terracotta)
+        const leafGrad = ctx.createLinearGradient(-R, -R * 0.5, R, R * 0.5);
+        leafGrad.addColorStop(0, '#B45309');
+        leafGrad.addColorStop(0.5, '#D97706');
+        leafGrad.addColorStop(1, '#92400E');
+
+        ctx.fillStyle = leafGrad;
+        ctx.beginPath();
+        ctx.moveTo(-R * 0.9, 0);
+        ctx.bezierCurveTo(-R * 0.6, -R * 0.7, -R * 0.2, -R * 0.85, 0, -R * 0.5);
+        ctx.bezierCurveTo(R * 0.3, -R * 0.85, R * 0.7, -R * 0.6, R * 0.95, 0);
+        ctx.bezierCurveTo(R * 0.7, R * 0.6, R * 0.3, R * 0.85, 0, R * 0.5);
+        ctx.bezierCurveTo(-R * 0.2, R * 0.85, -R * 0.6, R * 0.7, -R * 0.9, 0);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.shadowColor = 'transparent';
+        ctx.strokeStyle = 'rgba(120, 40, 10, 0.4)';
+        ctx.lineWidth = 2.0;
+        ctx.beginPath();
+        ctx.moveTo(-R * 1.1, 0);
+        ctx.lineTo(R * 0.85, 0);
+        ctx.stroke();
+
+        ctx.lineWidth = 1.2;
+        [-0.5, -0.2, 0.1, 0.4].forEach(xRel => {
+          ctx.beginPath();
+          ctx.moveTo(xRel * R, 0);
+          ctx.lineTo(xRel * R + R * 0.25, -R * 0.35);
+          ctx.moveTo(xRel * R, 0);
+          ctx.lineTo(xRel * R + R * 0.25, R * 0.35);
+          ctx.stroke();
+        });
+      }
+
+      ctx.restore();
+    }
+
+    ctx.restore();
   }
 
   /**

@@ -1,10 +1,10 @@
 /**
- * PawPlay Resilient Service Worker (v2)
- * Network-First for navigation (HTML) so deployments appear immediately.
- * Stale-While-Revalidate for assets so offline play remains 100% reliable.
+ * PawPlay Resilient Service Worker (v3)
+ * Network-First for HTML navigation and JS modules so deployments appear immediately.
+ * Cache fallback ensures offline play remains 100% reliable.
  */
 
-const CACHE_NAME = 'pawplay-v2';
+const CACHE_NAME = 'pawplay-v3';
 const PRECACHE_ASSETS = [
   '/',
   '/index.html',
@@ -46,8 +46,15 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(event.request.url);
 
-  // 1. Navigation / HTML requests: Network-First (ensures updates show immediately)
-  if (event.request.mode === 'navigate' || event.request.destination === 'document' || url.pathname.endsWith('.html') || url.pathname === '/') {
+  // 1. Navigation / HTML requests and JS modules: Network-First (ensures updates show immediately)
+  if (
+    event.request.mode === 'navigate' ||
+    event.request.destination === 'document' ||
+    url.pathname.endsWith('.html') ||
+    url.pathname === '/' ||
+    url.pathname.startsWith('/src/') ||
+    url.pathname.endsWith('.js')
+  ) {
     event.respondWith(
       fetch(event.request)
         .then((networkResponse) => {
@@ -58,13 +65,13 @@ self.addEventListener('fetch', (event) => {
           return networkResponse;
         })
         .catch(() => {
-          return caches.match(event.request).then((cached) => cached || caches.match('/index.html'));
+          return caches.match(event.request).then((cached) => cached || (url.pathname === '/' ? caches.match('/index.html') : null));
         })
     );
     return;
   }
 
-  // 2. Static Assets (JS, JSON, images): Stale-While-Revalidate
+  // 2. Static Assets (JSON, images, icons): Stale-While-Revalidate
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       const networkFetch = fetch(event.request)

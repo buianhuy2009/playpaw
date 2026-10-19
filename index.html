@@ -993,12 +993,24 @@
     // 6. Connect Render Loop
     engine.start((dt) => {
       const safeArea = engine.getDimensions().safeArea;
+      const covers = engine.getAmbushCovers();
 
-      // Update prey physics with off-screen excursion steering
-      preyManager.update(dt, safeArea);
+      // Update prey physics with off-screen excursion steering & ambush covers
+      preyManager.update(dt, safeArea, covers);
 
       // Safe margins with allowOffscreen = true so prey can go off-screen but not for long
       for (const prey of preyManager.preyList) {
+        if (!prey.onAudioTrigger) {
+          prey.onAudioTrigger = (actionType, panX) => {
+            if (actionType === 'buzz' || (actionType === 'twitch' && (prey.type === 'bee' || prey.type === 'bug'))) {
+              audio.playInsectBuzz(panX, 0.12);
+            } else if (actionType === 'rustle') {
+              audio.playLeafRustle(panX, 0.16);
+            } else if (actionType === 'twitch') {
+              audio.playPreyScurry(prey.type, panX);
+            }
+          };
+        }
         engine.applySafeMargins(prey, dt, true);
       }
 
@@ -1020,20 +1032,27 @@
         }
       }
 
-      // Real-time organic audio: claw scratching & scampering footsteps panned across stereo speakers
+      // Real-time organic audio: claw scratching, wing buzzing & scampering footsteps panned across stereo speakers
       if (preyManager.preyList && preyManager.preyList.length > 0) {
         for (const prey of preyManager.preyList) {
-          if (prey.state === 'DART_SPRINT' || (prey.state === 'EDGE_SKITTER' && Math.random() < 0.12)) {
+          if (prey.state === 'DART_SPRINT' || prey.state === 'TRAPPED_BUZZ' || (prey.state === 'EDGE_SKITTER' && Math.random() < 0.12)) {
             const canvasW = engine.width || 1024;
             const panX = ((prey.x / canvasW) * 2) - 1;
-            audio.playPreyScurry(prey.type, panX);
+            if (prey.type === 'bee') {
+              audio.playInsectBuzz(panX, 0.22);
+            } else {
+              audio.playPreyScurry(prey.type, panX);
+            }
             break;
           }
         }
       }
 
-      // Render prey sprites on top of active map theme
+      // 1. Render prey sprites on top of active map theme
       preyManager.draw(engine.ctx);
+
+      // 2. Render ambush covers on top of prey (Creates physical Peek-a-Boo Occlusion!)
+      engine.drawAmbushCovers(engine.ctx);
     });
 
     // 7. Fullscreen Main Menu & Map Navigation Wire-up
